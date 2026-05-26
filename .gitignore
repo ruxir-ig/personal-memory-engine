@@ -4,6 +4,9 @@ data/
 .env.*
 !.env.example
 
+# Draft docs
+*.md
+
 # Python
 .venv/
 __pycache__/
