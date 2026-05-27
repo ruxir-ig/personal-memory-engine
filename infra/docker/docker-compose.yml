@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: pme-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pme
+      POSTGRES_PASSWORD: pme
+      POSTGRES_DB: personal_memory_engine
+    ports:
+      - "54329:5432"
+    volumes:
+      - pme-postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pme -d personal_memory_engine"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: pme-redis
+    restart: unless-stopped
+    ports:
+      - "6389:6379"
+    volumes:
+      - pme-redis-data:/data
+
+volumes:
+  pme-postgres-data:
+  pme-redis-data:

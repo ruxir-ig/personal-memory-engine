@@ -1,0 +1,41 @@
+{
+  "name": "@pme/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push"
+  },
+  "dependencies": {
+    "@pme/shared": "workspace:*",
+    "@tanstack/react-query": "latest",
+    "@trpc/client": "latest",
+    "@trpc/react-query": "latest",
+    "@trpc/server": "latest",
+    "clsx": "latest",
+    "date-fns": "latest",
+    "drizzle-orm": "latest",
+    "lucide-react": "latest",
+    "nanoid": "latest",
+    "next": "latest",
+    "postgres": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "superjson": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "drizzle-kit": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest"
+  }
+}
