@@ -36,13 +36,6 @@ pnpm db:migrate
 pnpm worker
 ```
 
-## Drafts
-
-- [Product Draft](docs/adr/PRODUCT_DRAFT.md)
-- [Architecture](docs/adr/ARCHITECTURE.md)
-- [First Stack ADR](docs/adr/0001-first-draft-stack.md)
-- [Open Questions](docs/adr/OPEN_QUESTIONS.md)
-
 ## Repository Shape
 
 ```text
