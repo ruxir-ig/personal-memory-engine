@@ -2,27 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Bell,
-  Bot,
-  CalendarClock,
-  Database,
-  FileInput,
-  Inbox,
-  Search,
-  Settings,
-  Sparkles,
-} from "lucide-react";
+import { Blocks, FileInput, Sparkles } from "lucide-react";
 import { type ReactNode } from "react";
+import { ClientClock } from "./client-clock";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: Database },
-  { href: "/capture", label: "Capture", icon: FileInput },
-  { href: "/search", label: "Search", icon: Search },
-  { href: "/timeline", label: "Timeline", icon: CalendarClock },
-  { href: "/reminders", label: "Reminders", icon: Bell },
-  { href: "/chat", label: "Chat", icon: Bot },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/", label: "Canvas", icon: Blocks },
+  { href: "/ingest", label: "Ingest", icon: FileInput },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -36,7 +22,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Sparkles size={19} />
           </span>
           <span className="brand-title">
-            <strong>Memory Engine</strong>
+            <strong>Quipu</strong>
             <span>Local v0 workspace</span>
           </span>
         </Link>
@@ -52,17 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="surface-plain section-pad" style={{ marginTop: 22 }}>
-          <div className="pill-row" style={{ marginBottom: 10 }}>
-            <span className="pill accent">
-              <Inbox size={13} /> Review-first
-            </span>
-          </div>
-          <p className="card-copy">
-            Automation proposes durable memory, reminders, and preferences. The user confirms sensitive or side-effecting
-            changes.
-          </p>
-        </div>
+        <ClientClock />
       </aside>
       <main className="main-frame">{children}</main>
     </div>

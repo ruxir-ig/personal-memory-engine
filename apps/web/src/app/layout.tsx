@@ -4,8 +4,8 @@ import { AppShell } from "@/components/app-shell";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Personal Memory Engine",
-  description: "Local-first personal memory engine v0",
+  title: "Quipu",
+  description: "Local-first personal memory for notes, files, and context",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

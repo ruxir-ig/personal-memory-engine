@@ -64,6 +64,8 @@ export const captureInputSchema = z.object({
   text: z.string().min(1).max(30000),
   sourceLabel: z.string().max(120).optional(),
   shouldSummarize: z.boolean().default(true),
+  clientNow: z.string().datetime().optional(),
+  timezone: z.string().min(1).max(120).optional(),
 });
 
 export const searchInputSchema = z.object({
@@ -81,6 +83,7 @@ export const reminderInputSchema = z.object({
   dueAt: z.string().datetime(),
   sourceText: z.string().max(5000).optional(),
   artifactId: z.string().optional(),
+  timezone: z.string().min(1).max(120).optional(),
 });
 
 export const providerInputSchema = z.object({

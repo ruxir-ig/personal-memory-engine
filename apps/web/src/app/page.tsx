@@ -1,66 +1,108 @@
 import Link from "next/link";
-import { ArrowRight, Bell, MessageSquareText, Search } from "lucide-react";
-import { CaptureComposer } from "@/components/capture-composer";
+import { ArrowRight, Bell, Inbox, Layers3, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
-import { InboxPanel } from "@/components/inbox-panel";
+import { CanvasAsk } from "@/components/canvas-ask";
 import { MemoryCard } from "@/components/memory-card";
-import { MetricTile } from "@/components/metric-tile";
 import { PageHeading } from "@/components/page-heading";
 import { formatDateTime } from "@/lib/utils";
 import { getDashboardSnapshot } from "@/server/data/repository";
 
-export default async function DashboardPage() {
+export default async function CanvasPage() {
   const snapshot = await getDashboardSnapshot();
+  const isBlank =
+    snapshot.counts.artifacts === 0 &&
+    snapshot.counts.inbox === 0 &&
+    snapshot.counts.reminders === 0 &&
+    snapshot.events.length === 0;
 
   return (
     <>
       <PageHeading
-        kicker="First v0"
-        title="Capture, review, search, and ask your own evidence"
-        copy="A local-first memory workspace with durable provenance, proposed actions, timeline context, reminders, provider settings, and cited retrieval."
+        kicker="Canvas"
+        title="Quick glance"
+        copy="One page for the things that matter now: reminders, pending review, recent memory, and timeline context."
         actions={
-          <>
-            <Link className="button secondary" href="/search">
-              <Search size={16} />
-              Search
-            </Link>
-            <Link className="button" href="/chat">
-              <MessageSquareText size={16} />
-              Ask
-            </Link>
-          </>
+          <Link className="button" href="/ingest">
+            <Sparkles size={16} />
+            Add memory
+          </Link>
         }
       />
 
-      <section className="metric-row" aria-label="Memory statistics">
-        <MetricTile label="Artifacts" value={snapshot.counts.artifacts} />
-        <MetricTile label="Chunks" value={snapshot.counts.chunks} />
-        <MetricTile label="Inbox" value={snapshot.counts.inbox} />
-        <MetricTile label="Scheduled" value={snapshot.counts.reminders} />
-        <MetricTile label="Providers" value={snapshot.counts.providers} />
-      </section>
-
-      <div className="grid-dashboard">
-        <div className="card-list">
-          <CaptureComposer />
+      {isBlank ? (
+        <section className="blank-canvas">
+          <div>
+            <span className="blank-icon">
+              <Layers3 size={24} />
+            </span>
+            <h2>Your canvas is empty</h2>
+            <p>
+              Start by adding notes, files, deadlines, or context from Ingest. Nothing fake is shown here.
+            </p>
+            <Link className="button" href="/ingest">
+              Open ingest
+              <ArrowRight size={16} />
+            </Link>
+          </div>
+        </section>
+      ) : (
+        <div className="canvas-grid">
           <section className="surface section-pad">
-            <div className="card-title-row" style={{ marginBottom: 14 }}>
-              <div>
-                <div className="page-kicker">Recent memory</div>
-                <h2 className="card-title" style={{ fontSize: 20 }}>
-                  Source-backed artifacts
-                </h2>
-              </div>
-              <Link className="button secondary" href="/search">
-                View all
-                <ArrowRight size={16} />
-              </Link>
+            <div className="section-title">
+              <Bell size={17} />
+              <h2>Reminders</h2>
             </div>
-            {snapshot.artifacts.length === 0 ? (
-              <EmptyState>Capture a note or import a file to create the first memory.</EmptyState>
+            {snapshot.reminders.length === 0 ? (
+              <EmptyState>No reminders yet.</EmptyState>
             ) : (
               <div className="card-list">
-                {snapshot.artifacts.slice(0, 4).map((artifact) => (
+                {snapshot.reminders.map((reminder) => (
+                  <article className="memory-card" key={reminder.id}>
+                    <div className="card-title-row">
+                      <div>
+                        <h3 className="card-title">{reminder.title}</h3>
+                        <p className="card-copy">{formatDateTime(reminder.dueAt)}</p>
+                      </div>
+                      <span className="pill accent">{reminder.status}</span>
+                    </div>
+                    <span className="pill">{reminder.timezone}</span>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="surface section-pad">
+            <div className="section-title">
+              <Inbox size={17} />
+              <h2>Review</h2>
+            </div>
+            {snapshot.intents.length === 0 ? (
+              <EmptyState>No proposed actions waiting.</EmptyState>
+            ) : (
+              <div className="card-list">
+                {snapshot.intents.map((intent) => (
+                  <article className="memory-card" key={intent.id}>
+                    <h3 className="card-title">{intent.intentType.replaceAll("_", " ")}</h3>
+                    <p className="card-copy">
+                      {Math.round(intent.confidence * 100)}% confidence · {intent.requiredConfirmation ? "needs confirmation" : "low risk"}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="surface section-pad">
+            <div className="section-title">
+              <Layers3 size={17} />
+              <h2>Recent memory</h2>
+            </div>
+            {snapshot.artifacts.length === 0 ? (
+              <EmptyState>No memories captured yet.</EmptyState>
+            ) : (
+              <div className="card-list">
+                {snapshot.artifacts.map((artifact) => (
                   <MemoryCard
                     artifact={artifact}
                     key={artifact.id}
@@ -70,27 +112,17 @@ export default async function DashboardPage() {
               </div>
             )}
           </section>
-        </div>
 
-        <div className="card-list">
-          <InboxPanel />
           <section className="surface section-pad">
-            <div className="card-title-row" style={{ marginBottom: 14 }}>
-              <div>
-                <div className="page-kicker">Timeline</div>
-                <h2 className="card-title" style={{ fontSize: 20 }}>
-                  Time-aware context
-                </h2>
-              </div>
-              <Link className="icon-button secondary" href="/timeline" title="Open timeline">
-                <ArrowRight size={16} />
-              </Link>
+            <div className="section-title">
+              <ArrowRight size={17} />
+              <h2>Timeline</h2>
             </div>
-            <div className="timeline">
-              {snapshot.events.length === 0 ? (
-                <EmptyState>No timeline events have been extracted yet.</EmptyState>
-              ) : (
-                snapshot.events.slice(0, 4).map((event) => (
+            {snapshot.events.length === 0 ? (
+              <EmptyState>No timeline events yet.</EmptyState>
+            ) : (
+              <div className="timeline">
+                {snapshot.events.map((event) => (
                   <div className="timeline-item" key={event.id}>
                     <div className="timeline-time">{formatDateTime(event.eventAt ?? event.capturedAt)}</div>
                     <div>
@@ -98,36 +130,14 @@ export default async function DashboardPage() {
                       <p className="card-copy">{event.description}</p>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </section>
-          <section className="surface section-pad">
-            <div className="card-title-row" style={{ marginBottom: 14 }}>
-              <div>
-                <div className="page-kicker">Reminders</div>
-                <h2 className="card-title" style={{ fontSize: 20 }}>
-                  Scheduled follow-ups
-                </h2>
-              </div>
-              <Bell size={18} />
-            </div>
-            {snapshot.reminders.length === 0 ? (
-              <EmptyState>Accept a reminder proposal or create one manually.</EmptyState>
-            ) : (
-              <div className="card-list">
-                {snapshot.reminders.slice(0, 3).map((reminder) => (
-                  <article className="memory-card" key={reminder.id}>
-                    <h3 className="card-title">{reminder.title}</h3>
-                    <p className="card-copy">{formatDateTime(reminder.dueAt)}</p>
-                    <span className="pill accent">{reminder.status}</span>
-                  </article>
                 ))}
               </div>
             )}
           </section>
+
+          <CanvasAsk />
         </div>
-      </div>
+      )}
     </>
   );
 }

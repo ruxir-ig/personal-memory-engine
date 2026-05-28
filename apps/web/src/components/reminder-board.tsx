@@ -28,7 +28,7 @@ export function ReminderBoard() {
     const permission = await Notification.requestPermission();
     setNotificationMessage(`Browser notification permission: ${permission}`);
     if (permission === "granted") {
-      new Notification("Personal Memory Engine", {
+      new Notification("Quipu", {
         body: "Browser notifications are enabled for reminder v0.",
       });
     }
@@ -40,6 +40,7 @@ export function ReminderBoard() {
       title,
       dueAt: new Date(dueAt).toISOString(),
       sourceText: title,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
   }
 
