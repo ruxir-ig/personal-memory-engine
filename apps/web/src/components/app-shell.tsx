@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Blocks, FileInput, Sparkles } from "lucide-react";
+import { Blocks, FileInput, Settings, Sparkles } from "lucide-react";
 import { type ReactNode } from "react";
 import { ClientClock } from "./client-clock";
 
@@ -39,6 +39,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <ClientClock />
+        <Link className="profile-link" data-active={pathname.startsWith("/settings")} href="/settings">
+          <Settings size={17} aria-hidden="true" />
+          <span>
+            <strong>Profile</strong>
+            <small>Keys and preferences</small>
+          </span>
+        </Link>
       </aside>
       <main className="main-frame">{children}</main>
     </div>

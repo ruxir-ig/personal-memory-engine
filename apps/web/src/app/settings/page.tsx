@@ -5,9 +5,9 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeading
-        kicker="Settings"
-        title="Configure providers, retention, notifications, and UI preferences"
-        copy="V0 accepts API provider credentials in the local store. This keeps the browser app simple while marking encryption as a required hardening step before hosted or multi-user use."
+        kicker="Profile"
+        title="Profile and API keys"
+        copy="Keep your local profile, model provider, and capture defaults in one place. API keys stay in the local prototype store."
       />
       <SettingsPanel />
     </>

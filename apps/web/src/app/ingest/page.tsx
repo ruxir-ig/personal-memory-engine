@@ -1,5 +1,4 @@
 import { CaptureComposer } from "@/components/capture-composer";
-import { InboxPanel } from "@/components/inbox-panel";
 import { PageHeading } from "@/components/page-heading";
 
 export default function IngestPage() {
@@ -12,7 +11,6 @@ export default function IngestPage() {
       />
       <div className="ingest-layout">
         <CaptureComposer />
-        <InboxPanel />
       </div>
     </>
   );

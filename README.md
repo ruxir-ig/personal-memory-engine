@@ -2,14 +2,14 @@
 
 Quipu is a local-first personal memory engine prototype. It turns notes, files,
 deadlines, and project context into a clean quick-glance Canvas with grounded
-memory, reminder review, and cited answers.
+memory, automatic reminders, and cited answers.
 
 ## Prototype Flow
 
 The hackathon prototype has two primary modes:
 
 - `Canvas`: starts blank and only shows real user-created memory, reminders,
-  review items, and timeline context.
+  timeline context, and grounded answers.
 - `Ingest`: captures text, an optional source label, and file imports.
 
 The intended demo flow:
@@ -20,9 +20,8 @@ The intended demo flow:
 4. Quipu sends the input to a configured OpenAI-compatible chat provider and
    asks for structured JSON.
 5. The saved memory appears on Canvas.
-6. A reminder proposal appears for review.
-7. Accept the reminder.
-8. Ask `What is Quipu?` from Canvas and get an answer with source citation.
+6. The reminder is scheduled through the available reminder tool.
+7. Ask `What is Quipu?` from Canvas and get an answer with source citation.
 
 If no AI provider is configured, Quipu saves the capture as a raw draft and
 shows `AI provider required`. It does not pretend rule-based summaries or
@@ -39,7 +38,8 @@ Current prototype behavior:
 - Local JSON store under `data/` for fast development.
 - Raw file vault under `data/artifacts/`.
 - OpenAI-compatible chat-completions adapter for memory extraction.
-- Review inbox for side-effectful proposals such as reminders and preferences.
+- AI-controlled use of the limited available tools, including reminders,
+  events, and preference memory.
 - Cited retrieval over captured local chunks.
 
 Planned durable direction:
@@ -109,8 +109,8 @@ Implemented:
 - Text capture with optional source label.
 - File import into a local vault.
 - OpenAI-compatible AI processing for structured memory packets.
-- Reminder and preference proposals with accept/reject review.
-- Canvas reminder, review, memory, timeline, and ask sections.
+- Automatic reminder and preference actions from AI output.
+- Canvas reminder, memory, timeline, and ask sections.
 - README, pitch deck, and build-in-public submission draft.
 
 Planned:

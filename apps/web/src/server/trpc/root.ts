@@ -12,6 +12,7 @@ import {
   captureText,
   confirmIntent,
   createReminder,
+  deleteProvider,
   exportAllData,
   getArtifactById,
   getDashboardSnapshot,
@@ -60,6 +61,7 @@ export const appRouter = createTRPCRouter({
   provider: createTRPCRouter({
     list: publicProcedure.query(() => listProviders()),
     upsert: publicProcedure.input(providerInputSchema).mutation(({ input }) => upsertProvider(input)),
+    delete: publicProcedure.input(z.object({ id: z.string() })).mutation(({ input }) => deleteProvider(input.id)),
   }),
   chat: createTRPCRouter({
     ask: publicProcedure.input(chatInputSchema).mutation(({ input }) => askMemory(input)),

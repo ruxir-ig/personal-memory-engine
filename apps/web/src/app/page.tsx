@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Bell, Inbox, Layers3, Sparkles } from "lucide-react";
+import { ArrowRight, Bell, Layers3, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { CanvasAsk } from "@/components/canvas-ask";
 import { MemoryCard } from "@/components/memory-card";
@@ -20,7 +20,7 @@ export default async function CanvasPage() {
       <PageHeading
         kicker="Canvas"
         title="Quick glance"
-        copy="One page for the things that matter now: reminders, pending review, recent memory, and timeline context."
+        copy="One page for the things that matter now: reminders, recent memory, timeline context, and grounded answers."
         actions={
           <Link className="button" href="/ingest">
             <Sparkles size={16} />
@@ -66,27 +66,6 @@ export default async function CanvasPage() {
                       <span className="pill accent">{reminder.status}</span>
                     </div>
                     <span className="pill">{reminder.timezone}</span>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="surface section-pad">
-            <div className="section-title">
-              <Inbox size={17} />
-              <h2>Review</h2>
-            </div>
-            {snapshot.intents.length === 0 ? (
-              <EmptyState>No proposed actions waiting.</EmptyState>
-            ) : (
-              <div className="card-list">
-                {snapshot.intents.map((intent) => (
-                  <article className="memory-card" key={intent.id}>
-                    <h3 className="card-title">{intent.intentType.replaceAll("_", " ")}</h3>
-                    <p className="card-copy">
-                      {Math.round(intent.confidence * 100)}% confidence · {intent.requiredConfirmation ? "needs confirmation" : "low risk"}
-                    </p>
                   </article>
                 ))}
               </div>

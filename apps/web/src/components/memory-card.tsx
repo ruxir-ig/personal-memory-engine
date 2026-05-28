@@ -13,11 +13,7 @@ export function MemoryCard({ artifact, summary }: { artifact: Artifact; summary?
             <span className="pill">
               <FileText size={13} /> {artifact.type}
             </span>
-            {artifact.status === "needs_review" ? (
-              <StatusPill label="Needs review" tone="review" />
-            ) : (
-              <StatusPill label="Ready" />
-            )}
+            <StatusPill label={artifact.status === "failed" ? "Failed" : "Ready"} tone={artifact.status === "failed" ? "review" : "ready"} />
           </div>
           <h2 className="card-title">{artifact.title}</h2>
         </div>

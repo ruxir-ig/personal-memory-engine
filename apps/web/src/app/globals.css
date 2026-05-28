@@ -1,18 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f7f5;
-  --foreground: #141615;
-  --muted: #69716d;
-  --line: #d9ded8;
-  --panel: #ffffff;
-  --panel-subtle: #eef2ee;
-  --accent: #2d6a57;
-  --accent-strong: #174c3d;
-  --blue: #2f5e93;
-  --amber: #9a621d;
-  --rose: #9a3847;
-  --shadow: 0 18px 50px rgba(20, 22, 21, 0.08);
+  color-scheme: dark;
+  --background: #080d0a;
+  --foreground: #edf6ef;
+  --muted: #93a49a;
+  --line: #26362e;
+  --panel: #101712;
+  --panel-subtle: #17231c;
+  --panel-muted: #0c120f;
+  --field: #0b110e;
+  --accent: #48c78e;
+  --accent-strong: #95e6bd;
+  --button-text: #06110b;
+  --blue: #7bb7f0;
+  --amber: #f1b763;
+  --rose: #e46f82;
+  --shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
 }
 
 * {
@@ -28,7 +32,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(246, 247, 245, 0) 360px),
+    linear-gradient(180deg, rgba(25, 39, 31, 0.82), rgba(8, 13, 10, 0) 360px),
     var(--background);
   color: var(--foreground);
   font-family:
@@ -63,7 +67,7 @@ button {
   top: 0;
   height: 100vh;
   border-right: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(10, 16, 12, 0.82);
   backdrop-filter: blur(18px);
   padding: 22px 16px;
 }
@@ -82,7 +86,7 @@ button {
   place-items: center;
   border-radius: 8px;
   background: var(--accent-strong);
-  color: white;
+  color: var(--button-text);
 }
 
 .brand-title {
@@ -111,7 +115,7 @@ button {
   gap: 10px;
   min-height: 42px;
   border-radius: 8px;
-  color: #3d4641;
+  color: #bccbc2;
   padding: 0 10px;
   font-size: 14px;
 }
@@ -134,6 +138,41 @@ button {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(23, 35, 28, 0.62);
+  color: #c7d6ce;
+  padding: 12px;
+}
+
+.profile-link:hover,
+.profile-link[data-active="true"] {
+  border-color: rgba(72, 199, 142, 0.36);
+  background: rgba(72, 199, 142, 0.1);
+  color: var(--foreground);
+}
+
+.profile-link span {
+  display: grid;
+  gap: 2px;
+}
+
+.profile-link strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.profile-link small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .nav-link:hover,
@@ -187,7 +226,7 @@ button {
 .surface-plain {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(16, 23, 18, 0.72);
 }
 
 .section-pad {
@@ -219,7 +258,7 @@ button {
 
 .ingest-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 920px);
   gap: 16px;
   align-items: start;
 }
@@ -228,9 +267,9 @@ button {
   display: grid;
   min-height: min(620px, calc(100vh - 170px));
   place-items: center;
-  border: 1px dashed #bfc9c2;
+  border: 1px dashed #3d5147;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(12, 18, 15, 0.72);
   padding: 28px;
   text-align: center;
 }
@@ -261,7 +300,7 @@ button {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: white;
+  background: var(--panel);
   color: var(--accent-strong);
 }
 
@@ -284,6 +323,140 @@ button {
   gap: 14px;
 }
 
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.58fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.profile-panel,
+.provider-panel,
+.configured-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.configured-panel {
+  grid-column: 1 / -1;
+}
+
+.settings-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.settings-section-head h2 {
+  margin: 4px 0 0;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.settings-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(72, 199, 142, 0.28);
+  border-radius: 8px;
+  background: rgba(72, 199, 142, 0.1);
+  color: var(--accent-strong);
+}
+
+.profile-avatar {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  place-items: center;
+  border: 1px solid rgba(72, 199, 142, 0.34);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(72, 199, 142, 0.28), rgba(123, 183, 240, 0.12)),
+    var(--panel-subtle);
+  color: var(--foreground);
+  font-size: 34px;
+  font-weight: 760;
+}
+
+.settings-form {
+  display: grid;
+  gap: 13px;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.settings-form label span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 680;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.provider-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.provider-tab {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-muted);
+  color: #c3d2ca;
+  padding: 0 11px;
+  font-size: 13px;
+  font-weight: 640;
+}
+
+.provider-tab:hover,
+.provider-tab.active {
+  border-color: rgba(72, 199, 142, 0.4);
+  background: rgba(72, 199, 142, 0.12);
+  color: var(--accent-strong);
+}
+
+.provider-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.provider-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-muted);
+  padding: 14px;
+}
+
+.provider-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.provider-card h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.provider-card p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .metric-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(120px, 1fr));
@@ -295,7 +468,7 @@ button {
   min-height: 88px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(16, 23, 18, 0.76);
   padding: 13px;
 }
 
@@ -329,7 +502,7 @@ button {
   border-radius: 8px;
   padding: 0 13px;
   background: var(--accent);
-  color: white;
+  color: var(--button-text);
   font-size: 14px;
   font-weight: 650;
 }
@@ -337,12 +510,24 @@ button {
 .button.secondary,
 .icon-button.secondary {
   border-color: var(--line);
-  background: white;
+  background: var(--panel-subtle);
   color: var(--foreground);
 }
 
 .button.danger {
   background: var(--rose);
+}
+
+.icon-button.danger {
+  flex: 0 0 auto;
+  border-color: rgba(255, 122, 122, 0.32);
+  background: rgba(255, 122, 122, 0.1);
+  color: #ffb4b4;
+}
+
+.icon-button.danger:hover {
+  border-color: rgba(255, 122, 122, 0.54);
+  background: rgba(255, 122, 122, 0.16);
 }
 
 .button:disabled,
@@ -362,7 +547,7 @@ button {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: white;
+  background: var(--field);
   color: var(--foreground);
   outline: none;
   padding: 11px 12px;
@@ -378,7 +563,7 @@ button {
 .textarea:focus,
 .select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(45, 106, 87, 0.15);
+  box-shadow: 0 0 0 3px rgba(72, 199, 142, 0.18);
 }
 
 .card-list {
@@ -407,9 +592,9 @@ button {
 .chat-box {
   display: grid;
   gap: 8px;
-  border: 1px solid #cfd6d1;
+  border: 1px solid #33463b;
   border-radius: 26px;
-  background: #fdfefd;
+  background: var(--field);
   padding: 8px;
   transition:
     border-color 150ms ease,
@@ -420,8 +605,8 @@ button {
 .chat-box:focus-within,
 .chat-box[data-dragging="true"] {
   border-color: var(--accent);
-  background: white;
-  box-shadow: 0 0 0 3px rgba(45, 106, 87, 0.12);
+  background: #0d1510;
+  box-shadow: 0 0 0 3px rgba(72, 199, 142, 0.16);
 }
 
 .chat-input {
@@ -438,7 +623,7 @@ button {
 }
 
 .chat-input::placeholder {
-  color: #828a86;
+  color: #78887f;
 }
 
 .chat-actions {
@@ -461,7 +646,7 @@ button {
 }
 
 .source-input::placeholder {
-  color: #828a86;
+  color: #78887f;
 }
 
 .chat-footnote {
@@ -484,7 +669,7 @@ button {
   width: 38px;
   height: 38px;
   background: transparent;
-  color: #46504b;
+  color: #b9c9c0;
 }
 
 .chat-icon-button:hover {
@@ -496,7 +681,7 @@ button {
   width: 42px;
   height: 42px;
   background: var(--accent);
-  color: white;
+  color: var(--button-text);
 }
 
 .chat-send-button:disabled {
@@ -518,7 +703,7 @@ button {
   min-height: 58px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: white;
+  background: var(--panel);
   padding: 7px;
   text-align: left;
 }
@@ -566,7 +751,7 @@ button {
   gap: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: white;
+  background: var(--panel-muted);
   padding: 14px;
 }
 
@@ -605,21 +790,21 @@ button {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-subtle);
-  color: #47514c;
+  color: #bfd0c6;
   padding: 0 8px;
   font-size: 12px;
   white-space: nowrap;
 }
 
 .pill.accent {
-  border-color: rgba(45, 106, 87, 0.28);
-  background: rgba(45, 106, 87, 0.1);
+  border-color: rgba(72, 199, 142, 0.34);
+  background: rgba(72, 199, 142, 0.12);
   color: var(--accent-strong);
 }
 
 .pill.amber {
-  border-color: rgba(154, 98, 29, 0.25);
-  background: rgba(154, 98, 29, 0.1);
+  border-color: rgba(241, 183, 99, 0.34);
+  background: rgba(241, 183, 99, 0.12);
   color: var(--amber);
 }
 
@@ -644,9 +829,9 @@ button {
 }
 
 .empty-state {
-  border: 1px dashed #bec8c1;
+  border: 1px dashed #3d5147;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(12, 18, 15, 0.64);
   color: var(--muted);
   padding: 18px;
   text-align: center;
@@ -656,9 +841,9 @@ button {
   display: grid;
   min-height: 138px;
   place-items: center;
-  border: 1px dashed #b8c1bb;
+  border: 1px dashed #3d5147;
   border-radius: 8px;
-  background: rgba(238, 242, 238, 0.68);
+  background: rgba(23, 35, 28, 0.72);
   padding: 18px;
   text-align: center;
 }
@@ -672,7 +857,7 @@ button {
   overflow-wrap: anywhere;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcfb;
+  background: var(--field);
   padding: 16px;
   line-height: 1.55;
 }
@@ -696,7 +881,8 @@ button {
   .grid-dashboard,
   .grid-two,
   .canvas-grid,
-  .ingest-layout {
+  .ingest-layout,
+  .settings-layout {
     grid-template-columns: 1fr;
   }
 

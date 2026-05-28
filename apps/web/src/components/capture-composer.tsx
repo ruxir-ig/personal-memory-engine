@@ -67,7 +67,6 @@ export function CaptureComposer() {
   async function invalidateMemoryViews() {
     await Promise.all([
       utils.dashboard.snapshot.invalidate(),
-      utils.inbox.list.invalidate(),
       utils.search.query.invalidate(),
     ]);
   }
@@ -248,9 +247,6 @@ export function CaptureComposer() {
             <span className="pill accent">On Canvas</span>
             {capture.data.artifact.metadata.aiStatus === "provider_required" ? (
               <span className="pill amber">AI provider required</span>
-            ) : null}
-            {capture.data.artifact.metadata.ingestStatus === "ready_for_review" ? (
-              <span className="pill amber">Review proposed</span>
             ) : null}
             <span className="pill">
               {capture.data.intents.length} intents, {capture.data.chunks.length} chunks
