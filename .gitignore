@@ -6,6 +6,10 @@ data/
 
 # Draft docs
 *.md
+!README.md
+!AGENTS.md
+!CLAUDE.md
+docs/
 
 # Python
 .venv/
