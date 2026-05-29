@@ -13,7 +13,7 @@ export function ReminderBoard() {
     onSuccess: async () => {
       setTitle("");
       setDueAt("");
-      await Promise.all([utils.reminder.list.invalidate(), utils.dashboard.snapshot.invalidate()]);
+      await Promise.all([utils.reminder.list.invalidate(), utils.dashboard.snapshot.invalidate(), utils.canvas.layout.invalidate()]);
     },
   });
   const [title, setTitle] = useState("");
@@ -22,88 +22,75 @@ export function ReminderBoard() {
 
   async function requestNotifications() {
     if (!("Notification" in window)) {
-      setNotificationMessage("This browser does not expose Notification permission.");
+      setNotificationMessage("This browser does not support notifications.");
       return;
     }
     const permission = await Notification.requestPermission();
-    setNotificationMessage(`Browser notification permission: ${permission}`);
-    if (permission === "granted") {
-      new Notification("Quipu", {
-        body: "Browser notifications are enabled for reminder v0.",
-      });
-    }
+    setNotificationMessage(`Notifications: ${permission}`);
+    if (permission === "granted") new Notification("Quipo", { body: "Reminder notifications are on." });
   }
 
   async function submitReminder() {
     if (!title.trim() || !dueAt) return;
-    await create.mutateAsync({
-      title,
-      dueAt: new Date(dueAt).toISOString(),
-      sourceText: title,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    });
+    await create.mutateAsync({ title, dueAt: new Date(dueAt).toISOString(), sourceText: title, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
   }
 
   return (
-    <div className="grid-dashboard">
-      <section className="surface section-pad">
-        <div className="card-title-row" style={{ marginBottom: 14 }}>
-          <div>
-            <div className="page-kicker">Reminder engine</div>
-            <h2 className="card-title" style={{ fontSize: 20 }}>
-              Browser-notification first
-            </h2>
+    <div className="settings-grid">
+      <section className="card pad-lg">
+        <div className="section-head">
+          <div className="block-title">
+            <span className="ic">
+              <CalendarPlus size={16} />
+            </span>
+            New reminder
           </div>
-          <button className="icon-button secondary" type="button" title="Enable notifications" onClick={requestNotifications}>
-            <Bell size={17} />
+          <button className="icon-btn" type="button" title="Enable notifications" aria-label="Enable notifications" onClick={requestNotifications}>
+            <Bell size={16} />
           </button>
         </div>
-        <div className="card-list">
-          <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Reminder title" />
-          <input
-            className="input"
-            type="datetime-local"
-            value={dueAt}
-            onChange={(event) => setDueAt(event.target.value)}
-          />
-          <div className="toolbar">
-            <button className="button" type="button" onClick={submitReminder} disabled={!title.trim() || !dueAt || create.isPending}>
-              {create.isPending ? <Loader2 size={16} /> : <CalendarPlus size={16} />}
-              Schedule
-            </button>
-            {notificationMessage ? <span className="pill">{notificationMessage}</span> : null}
-          </div>
+        <div className="stack">
+          <label className="field">
+            <span>Title</span>
+            <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Follow up with..." />
+          </label>
+          <label className="field">
+            <span>Due</span>
+            <input className="input" type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} />
+          </label>
+          <button className="btn" type="button" onClick={submitReminder} disabled={!title.trim() || !dueAt || create.isPending}>
+            {create.isPending ? <Loader2 size={16} className="spin" /> : <CalendarPlus size={16} />}
+            Schedule
+          </button>
+          {notificationMessage ? <span className="faint" style={{ fontSize: 12 }}>{notificationMessage}</span> : null}
         </div>
       </section>
 
-      <section className="surface section-pad">
-        <div className="page-kicker" style={{ marginBottom: 12 }}>
+      <section>
+        <div className="kicker" style={{ marginBottom: 12 }}>
           Scheduled
         </div>
         {reminders.isLoading ? (
-          <span className="pill">
-            <Loader2 size={13} /> Loading reminders
+          <span className="chip">
+            <Loader2 size={13} className="spin" /> Loading
           </span>
         ) : reminders.data?.length ? (
-          <div className="card-list">
+          <div className="list">
             {reminders.data.map((reminder) => (
-              <article className="memory-card" key={reminder.id}>
-                <div className="card-title-row">
-                  <div>
-                    <h2 className="card-title">{reminder.title}</h2>
-                    <p className="card-copy">{reminder.naturalLanguageSource}</p>
-                  </div>
-                  <span className="pill accent">{reminder.status}</span>
+              <div className="lrow" key={reminder.id}>
+                <span className="when">{formatDateTime(reminder.dueAt).split(",")[0]}</span>
+                <div className="lrow-main">
+                  <strong>{reminder.title}</strong>
+                  <span>{formatDateTime(reminder.dueAt)}</span>
                 </div>
-                <div className="pill-row">
-                  <span className="pill">{formatDateTime(reminder.dueAt)}</span>
-                  <span className="pill">{reminder.timezone}</span>
-                </div>
-              </article>
+                <span className={reminder.status === "scheduled" ? "chip accent" : "chip"}>{reminder.status}</span>
+              </div>
             ))}
           </div>
         ) : (
-          <EmptyState>No reminders scheduled yet.</EmptyState>
+          <EmptyState title="No reminders yet" icon={<Bell size={20} />}>
+            Schedule one here, or confirm a reminder Quipo detects from something you dump.
+          </EmptyState>
         )}
       </section>
     </div>

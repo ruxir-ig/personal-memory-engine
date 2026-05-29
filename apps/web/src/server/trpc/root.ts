@@ -1,12 +1,5 @@
 import { z } from "zod";
-import {
-  captureInputSchema,
-  chatInputSchema,
-  preferenceInputSchema,
-  providerInputSchema,
-  reminderInputSchema,
-  searchInputSchema,
-} from "@pme/shared";
+import { captureInputSchema, chatInputSchema, preferenceInputSchema, providerInputSchema, reminderInputSchema, searchInputSchema } from "@pme/shared";
 import {
   askMemory,
   captureText,
@@ -15,14 +8,19 @@ import {
   deleteProvider,
   exportAllData,
   getArtifactById,
+  getCanvasLayout,
   getDashboardSnapshot,
+  getSpaceBySlug,
   listInbox,
   listPreferences,
   listProviders,
   listReminders,
   listRuns,
+  listSpaces,
   listTimeline,
   querySearch,
+  regenerateCanvas,
+  setItemFlags,
   updatePreference,
   upsertProvider,
 } from "@/server/data/repository";
@@ -32,11 +30,20 @@ export const appRouter = createTRPCRouter({
   dashboard: createTRPCRouter({
     snapshot: publicProcedure.query(() => getDashboardSnapshot()),
   }),
+  canvas: createTRPCRouter({
+    layout: publicProcedure.input(z.object({ clientNow: z.string().optional() }).optional()).query(({ input }) => getCanvasLayout(input?.clientNow)),
+    regenerate: publicProcedure.input(z.object({ clientNow: z.string().optional() }).optional()).mutation(({ input }) => regenerateCanvas(input?.clientNow)),
+  }),
   memory: createTRPCRouter({
     capture: publicProcedure.input(captureInputSchema).mutation(({ input }) => captureText(input)),
-    confirmIntent: publicProcedure
-      .input(z.object({ intentId: z.string(), accepted: z.boolean() }))
-      .mutation(({ input }) => confirmIntent(input.intentId, input.accepted)),
+    confirmIntent: publicProcedure.input(z.object({ intentId: z.string(), accepted: z.boolean() })).mutation(({ input }) => confirmIntent(input.intentId, input.accepted)),
+    setFlags: publicProcedure
+      .input(z.object({ id: z.string(), pinned: z.boolean().optional(), archived: z.boolean().optional() }))
+      .mutation(({ input }) => setItemFlags(input)),
+  }),
+  space: createTRPCRouter({
+    list: publicProcedure.query(() => listSpaces()),
+    bySlug: publicProcedure.input(z.object({ slug: z.string() })).query(({ input }) => getSpaceBySlug(input.slug)),
   }),
   artifact: createTRPCRouter({
     byId: publicProcedure.input(z.object({ id: z.string() })).query(({ input }) => getArtifactById(input.id)),

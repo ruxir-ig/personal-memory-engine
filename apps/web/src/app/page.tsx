@@ -1,122 +1,79 @@
-import Link from "next/link";
-import { ArrowRight, Bell, Layers3, Sparkles } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
-import { CanvasAsk } from "@/components/canvas-ask";
-import { MemoryCard } from "@/components/memory-card";
-import { PageHeading } from "@/components/page-heading";
-import { formatDateTime } from "@/lib/utils";
-import { getDashboardSnapshot } from "@/server/data/repository";
+import type { Artifact, SummaryRecord } from "@pme/shared";
+import { CanvasBoard, type CanvasBundle, type ItemView, type SpaceLite, type TodayEntry } from "@/components/canvas/canvas-board";
+import type { ReviewEntry } from "@/components/canvas/review-queue";
+import { getCanvasLayout, getDashboardSnapshot, listSpaces } from "@/server/data/repository";
+
+export const dynamic = "force-dynamic";
+
+function isToday(value?: string) {
+  if (!value) return false;
+  const date = new Date(value);
+  const today = new Date();
+  return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate();
+}
+
+function timeOf(value?: string) {
+  if (!value) return "--";
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(value));
+}
+
+const intentLabel: Record<string, string> = {
+  create_reminder: "Set a reminder?",
+  create_event: "Add this event?",
+  update_preference: "Remember this preference?",
+  link_to_project: "Link to a project?",
+  retention_decision: "Keep the original?",
+  needs_review: "Confirm this memory",
+};
 
 export default async function CanvasPage() {
-  const snapshot = await getDashboardSnapshot();
-  const isBlank =
-    snapshot.counts.artifacts === 0 &&
-    snapshot.counts.inbox === 0 &&
-    snapshot.counts.reminders === 0 &&
-    snapshot.events.length === 0;
+  const [snapshot, layout, spaces] = await Promise.all([getDashboardSnapshot(), getCanvasLayout(), listSpaces()]);
 
-  return (
-    <>
-      <PageHeading
-        kicker="Canvas"
-        title="Quick glance"
-        copy="One page for the things that matter now: reminders, recent memory, timeline context, and grounded answers."
-        actions={
-          <Link className="button" href="/ingest">
-            <Sparkles size={16} />
-            Add memory
-          </Link>
-        }
-      />
+  const summaryByArtifact = new Map<string, SummaryRecord>();
+  for (const summary of snapshot.summaries) {
+    if (!summaryByArtifact.has(summary.artifactId)) summaryByArtifact.set(summary.artifactId, summary);
+  }
+  const itemsById: Record<string, ItemView> = {};
+  for (const artifact of snapshot.artifacts) {
+    itemsById[artifact.id] = { item: artifact, summary: summaryByArtifact.get(artifact.id) };
+  }
 
-      {isBlank ? (
-        <section className="blank-canvas">
-          <div>
-            <span className="blank-icon">
-              <Layers3 size={24} />
-            </span>
-            <h2>Your canvas is empty</h2>
-            <p>
-              Start by adding notes, files, deadlines, or context from Ingest. Nothing fake is shown here.
-            </p>
-            <Link className="button" href="/ingest">
-              Open ingest
-              <ArrowRight size={16} />
-            </Link>
-          </div>
-        </section>
-      ) : (
-        <div className="canvas-grid">
-          <section className="surface section-pad">
-            <div className="section-title">
-              <Bell size={17} />
-              <h2>Reminders</h2>
-            </div>
-            {snapshot.reminders.length === 0 ? (
-              <EmptyState>No reminders yet.</EmptyState>
-            ) : (
-              <div className="card-list">
-                {snapshot.reminders.map((reminder) => (
-                  <article className="memory-card" key={reminder.id}>
-                    <div className="card-title-row">
-                      <div>
-                        <h3 className="card-title">{reminder.title}</h3>
-                        <p className="card-copy">{formatDateTime(reminder.dueAt)}</p>
-                      </div>
-                      <span className="pill accent">{reminder.status}</span>
-                    </div>
-                    <span className="pill">{reminder.timezone}</span>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
+  const spaceList: SpaceLite[] = spaces.map((space) => ({
+    id: space.id,
+    slug: space.slug,
+    title: space.title,
+    description: space.description,
+    icon: space.icon,
+    accent: space.accent,
+    itemCount: space.itemCount,
+  }));
 
-          <section className="surface section-pad">
-            <div className="section-title">
-              <Layers3 size={17} />
-              <h2>Recent memory</h2>
-            </div>
-            {snapshot.artifacts.length === 0 ? (
-              <EmptyState>No memories captured yet.</EmptyState>
-            ) : (
-              <div className="card-list">
-                {snapshot.artifacts.map((artifact) => (
-                  <MemoryCard
-                    artifact={artifact}
-                    key={artifact.id}
-                    summary={snapshot.summaries.find((summary) => summary.artifactId === artifact.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
+  const credentials: Artifact[] = snapshot.artifacts.filter((artifact) => artifact.kind === "credential");
 
-          <section className="surface section-pad">
-            <div className="section-title">
-              <ArrowRight size={17} />
-              <h2>Timeline</h2>
-            </div>
-            {snapshot.events.length === 0 ? (
-              <EmptyState>No timeline events yet.</EmptyState>
-            ) : (
-              <div className="timeline">
-                {snapshot.events.map((event) => (
-                  <div className="timeline-item" key={event.id}>
-                    <div className="timeline-time">{formatDateTime(event.eventAt ?? event.capturedAt)}</div>
-                    <div>
-                      <h3 className="card-title">{event.title}</h3>
-                      <p className="card-copy">{event.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+  const today: TodayEntry[] = [
+    ...snapshot.reminders
+      .filter((reminder) => reminder.status === "scheduled" && isToday(reminder.dueAt))
+      .map((reminder) => ({ id: reminder.id, when: timeOf(reminder.dueAt), title: reminder.title, sub: "Reminder" })),
+    ...snapshot.events
+      .filter((event) => isToday(event.eventAt ?? event.capturedAt))
+      .map((event) => ({ id: event.id, when: timeOf(event.eventAt ?? event.capturedAt), title: event.title, sub: event.description })),
+  ].sort((a, b) => a.when.localeCompare(b.when));
 
-          <CanvasAsk />
-        </div>
-      )}
-    </>
-  );
+  const review: ReviewEntry[] = snapshot.intents.map((intent) => ({
+    id: intent.id,
+    title: (intent.artifactId ? itemsById[intent.artifactId]?.item.title : undefined) ?? intentLabel[intent.intentType] ?? "Review memory",
+    detail: intent.proposedActions[0] ?? intentLabel[intent.intentType] ?? "Needs a quick decision",
+  }));
+
+  const bundle: CanvasBundle = {
+    layout,
+    itemsById,
+    spaces: spaceList,
+    credentials,
+    today,
+    review,
+    totalItems: snapshot.counts.artifacts,
+  };
+
+  return <CanvasBoard bundle={bundle} />;
 }

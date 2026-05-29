@@ -1,70 +1,87 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Loader2, Send } from "lucide-react";
+import { ArrowUpRight, Loader2, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/trpc/client";
+import { EmptyState } from "./empty-state";
+
+const starters = ["What did I save about AI?", "Which API keys do I have?", "Show reels I wanted to watch", "Summarize what I saved this week"];
 
 export function ChatPanel() {
   const [question, setQuestion] = useState("");
   const ask = trpc.chat.ask.useMutation();
 
-  async function submitQuestion() {
-    if (!question.trim()) return;
-    await ask.mutateAsync({ question });
+  function run(value: string) {
+    const q = value.trim();
+    if (!q) return;
+    setQuestion(q);
+    ask.mutate({ question: q });
   }
 
   return (
-    <div className="grid-dashboard">
-      <section className="surface section-pad">
-        <div className="page-kicker" style={{ marginBottom: 12 }}>
-          Grounded chat
-        </div>
-        <div className="card-list">
-          <textarea
-            className="textarea"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="Ask from your captured memory, for example: what is the V0 architecture?"
-          />
-          <div className="toolbar">
-            <button className="button" type="button" onClick={submitQuestion} disabled={!question.trim() || ask.isPending}>
-              {ask.isPending ? <Loader2 size={16} /> : <Send size={16} />}
-              Ask
-            </button>
+    <div className="stack" style={{ maxWidth: 760 }}>
+      <div className="ask">
+        <form
+          className="ask-input-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            run(question);
+          }}
+        >
+          <div className="input-search grow">
+            <Search size={16} />
+            <input className="input" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask anything from your memory..." aria-label="Ask your memory" />
           </div>
-        </div>
-      </section>
-      <section className="surface section-pad">
-        <div className="page-kicker" style={{ marginBottom: 12 }}>
-          Answer
-        </div>
-        {ask.data ? (
-          <div className="card-list">
-            <article className="memory-card">
-              <p className="card-copy" style={{ color: "var(--foreground)" }}>
-                {ask.data.answer}
-              </p>
-              <span className="pill amber">{ask.data.uncertainty}</span>
-            </article>
-            {ask.data.citations.map((citation) => (
-              <article className="memory-card" key={citation.chunkId}>
-                <div className="card-title-row">
-                  <div>
-                    <h2 className="card-title">{citation.title}</h2>
-                    <p className="card-copy">{citation.quote}</p>
-                  </div>
-                  <Link className="icon-button secondary" href={`/artifact/${citation.artifactId}`} title="Open citation">
-                    <ArrowUpRight size={16} />
-                  </Link>
-                </div>
-              </article>
+          <button className="btn" type="submit" disabled={!question.trim() || ask.isPending}>
+            {ask.isPending ? <Loader2 size={16} className="spin" /> : <ArrowUpRight size={16} />}
+            Ask
+          </button>
+        </form>
+
+        {!ask.data ? (
+          <div className="ask-suggest">
+            {starters.map((starter) => (
+              <button key={starter} type="button" onClick={() => run(starter)}>
+                {starter}
+              </button>
             ))}
           </div>
-        ) : (
-          <div className="empty-state">Answers appear here with exact source chunks as citations.</div>
-        )}
-      </section>
+        ) : null}
+
+        {ask.data ? (
+          <div className="answer">
+            <div className="row" style={{ gap: 9, alignItems: "flex-start" }}>
+              <span className="block-title">
+                <span className="ic">
+                  <Sparkles size={15} />
+                </span>
+              </span>
+              <p className="body grow">{ask.data.answer}</p>
+            </div>
+            {ask.data.uncertainty ? (
+              <p className="faint" style={{ fontSize: 12 }}>
+                {ask.data.uncertainty}
+              </p>
+            ) : null}
+            {ask.data.citations.map((citation) => (
+              <Link className="cite" key={citation.chunkId} href={`/item/${citation.artifactId}`}>
+                <div className="grow">
+                  <strong style={{ fontSize: 12.5 }}>{citation.title}</strong>
+                  <blockquote>{citation.quote}</blockquote>
+                </div>
+                <ArrowUpRight size={14} className="faint" />
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {!ask.data ? (
+        <EmptyState title="Grounded answers only" icon={<Sparkles size={20} />}>
+          Quipo answers from what you have actually saved and links every claim back to the source.
+        </EmptyState>
+      ) : null}
     </div>
   );
 }

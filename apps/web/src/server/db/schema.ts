@@ -13,7 +13,7 @@ import {
   uuid,
   vector,
 } from "drizzle-orm/pg-core";
-import type { ArtifactType, ProviderCapability, ProviderKind } from "@pme/shared";
+import type { ArtifactType, ProviderCapability, ProviderKind, SyncStatus } from "@pme/shared";
 
 const tsvector = customType<{ data: string }>({
   dataType() {
@@ -47,6 +47,7 @@ export const intentTypeEnum = pgEnum("intent_type", [
 ]);
 
 export const reminderStatusEnum = pgEnum("reminder_status", ["draft", "scheduled", "done", "dismissed", "failed"]);
+export const syncStatusEnum = pgEnum("sync_status", ["local_processed", "pending_review", "synced_to_canvas"]);
 export const preferenceCategoryEnum = pgEnum("preference_category", [
   "ui",
   "capture",
@@ -97,6 +98,7 @@ export const artifacts = pgTable(
     retentionDecision: text("retention_decision").notNull().default("review"),
     privacy: text("privacy").notNull().default("local"),
     status: text("status").notNull().default("processing"),
+    syncStatus: syncStatusEnum("sync_status").$type<SyncStatus>().notNull().default("local_processed"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
     sourceCreatedAt: timestamp("source_created_at", { withTimezone: true }),

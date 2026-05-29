@@ -4,11 +4,7 @@ import { SettingsPanel } from "@/components/settings-panel";
 export default function SettingsPage() {
   return (
     <>
-      <PageHeading
-        kicker="Profile"
-        title="Profile and API keys"
-        copy="Keep your local profile, model provider, and capture defaults in one place. API keys stay in the local prototype store."
-      />
+      <PageHeading kicker="Settings" title="Profile & providers" copy="Your name, your AI provider, and capture defaults. Everything stays on your device." />
       <SettingsPanel />
     </>
   );

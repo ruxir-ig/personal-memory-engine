@@ -4,11 +4,7 @@ import { PageHeading } from "@/components/page-heading";
 export default function ChatPage() {
   return (
     <>
-      <PageHeading
-        kicker="Cited retrieval"
-        title="Ask questions over memory, not loose model context"
-        copy="This first chat path retrieves local chunks, reports uncertainty, and links every answer back to source artifacts."
-      />
+      <PageHeading kicker="Ask" title="Ask your memory" copy="Ask questions in plain language. Quipo answers only from what you have saved and links back to the source." />
       <ChatPanel />
     </>
   );

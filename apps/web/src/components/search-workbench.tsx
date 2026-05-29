@@ -19,65 +19,65 @@ export function SearchWorkbench() {
   }
 
   return (
-    <section className="surface section-pad">
-      <div className="toolbar" style={{ marginBottom: 14 }}>
-        <div style={{ position: "relative", flex: "1 1 320px" }}>
-          <Search size={16} style={{ left: 12, position: "absolute", top: 13, color: "var(--muted)" }} />
-          <input
-            className="input"
-            style={{ paddingLeft: 38 }}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by keyword, topic, source, project, or cited phrase"
-          />
-        </div>
+    <div className="stack">
+      <div className="input-search">
+        <Search size={17} />
+        <input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search everything you have saved..." aria-label="Search memories" />
       </div>
-      <div className="pill-row" style={{ marginBottom: 18 }}>
+
+      <div className="seg" role="group" aria-label="Filter by type">
         {artifactTypes.map((type) => (
-          <button
-            className={selected.includes(type) ? "pill accent" : "pill"}
-            key={type}
-            type="button"
-            onClick={() => toggleType(type)}
-          >
+          <button className="seg-btn" data-active={selected.includes(type)} key={type} type="button" onClick={() => toggleType(type)}>
             {type}
           </button>
         ))}
       </div>
+
       {search.isLoading ? (
-        <span className="pill">
-          <Loader2 size={13} /> Searching
+        <span className="chip">
+          <Loader2 size={13} className="spin" /> Searching
         </span>
       ) : search.data?.length ? (
-        <div className="card-list">
+        <div className="stack">
           {search.data.map((result) => (
-            <article className="memory-card" key={result.chunk.id}>
-              <div className="card-title-row">
-                <div>
-                  <h2 className="card-title">{result.artifact.title}</h2>
-                  <p className="card-copy">{result.chunk.text}</p>
+            <article className="card pad hover" key={result.chunk.id}>
+              <div className="row top between" style={{ gap: 12 }}>
+                <div className="grow">
+                  <Link className="item-title clamp-2" href={`/item/${result.artifact.id}`} style={{ fontSize: 15 }}>
+                    {result.artifact.title}
+                  </Link>
+                  <p className="dim clamp-3" style={{ fontSize: 13, marginTop: 6, lineHeight: 1.55 }}>
+                    {result.chunk.text}
+                  </p>
                 </div>
-                <Link className="icon-button secondary" href={`/artifact/${result.artifact.id}`} title="Open source">
+                <Link className="icon-btn" href={`/item/${result.artifact.id}`} title="Open source" aria-label="Open source">
                   <ArrowUpRight size={16} />
                 </Link>
               </div>
-              <div className="pill-row">
-                <span className="pill accent">score {result.score.toFixed(2)}</span>
-                <span className="pill">keyword {result.scoreBreakdown.keyword.toFixed(2)}</span>
-                <span className="pill">semantic {result.scoreBreakdown.semantic.toFixed(2)}</span>
-                <span className="pill">graph {result.scoreBreakdown.graph.toFixed(2)}</span>
-                {result.matchedTerms.map((term) => (
-                  <span className="pill" key={term}>
-                    {term}
+              <div className="row between" style={{ marginTop: 12, gap: 14 }}>
+                <div className="score-bar grow">
+                  <span>match</span>
+                  <span className="track">
+                    <span className="fill" style={{ width: `${Math.min(100, Math.round(result.score * 100))}%` }} />
                   </span>
-                ))}
+                  <span className="tnum">{result.score.toFixed(2)}</span>
+                </div>
+                <div className="chip-row">
+                  {result.matchedTerms.slice(0, 4).map((term) => (
+                    <span className="chip" key={term}>
+                      {term}
+                    </span>
+                  ))}
+                </div>
               </div>
             </article>
           ))}
         </div>
       ) : (
-        <EmptyState>No matching chunks yet. Empty search shows recent memory; specific searches require a term match.</EmptyState>
+        <EmptyState title={query ? "No matches" : "Search your memory"}>
+          {query ? "Nothing matched that yet. Try fewer or different words." : "Type a keyword, topic, source, or a phrase you remember saving."}
+        </EmptyState>
       )}
-    </section>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { KeyRound, Loader2, Save, Trash2, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { PreferenceRecord, ProviderCapability, ProviderKind } from "@pme/shared";
 import { trpc } from "@/trpc/client";
+import { DemoResetButton } from "./demo-reset-button";
 import { EmptyState } from "./empty-state";
 
 const providerKinds: ProviderKind[] = ["openai", "openrouter", "groq", "cerebras", "custom_openai_compatible"];
@@ -34,7 +35,7 @@ export function SettingsPanel() {
   const upsert = trpc.provider.upsert.useMutation({
     onSuccess: async () => {
       setApiKey("");
-      await Promise.all([utils.provider.list.invalidate(), utils.dashboard.snapshot.invalidate()]);
+      await Promise.all([utils.provider.list.invalidate(), utils.dashboard.snapshot.invalidate(), utils.canvas.layout.invalidate()]);
     },
   });
   const deleteProvider = trpc.provider.delete.useMutation({
@@ -43,16 +44,15 @@ export function SettingsPanel() {
     },
   });
   const updatePreference = trpc.preference.update.useMutation({
-    onSuccess: () => utils.preference.list.invalidate(),
+    onSuccess: async () => {
+      await Promise.all([utils.preference.list.invalidate(), utils.canvas.layout.invalidate()]);
+    },
   });
 
   const storedProfile = useMemo(
     () => ({
       displayName: valueAsString(preferenceValue(preferences.data, "ui", "displayName"), "Ruxir"),
-      timezone: valueAsString(
-        preferenceValue(preferences.data, "notifications", "timezone"),
-        Intl.DateTimeFormat().resolvedOptions().timeZone,
-      ),
+      timezone: valueAsString(preferenceValue(preferences.data, "notifications", "timezone"), Intl.DateTimeFormat().resolvedOptions().timeZone),
       defaultSource: valueAsString(preferenceValue(preferences.data, "capture", "defaultSourceLabel"), "Quick capture"),
       density: valueAsString(preferenceValue(preferences.data, "ui", "density"), "compact"),
     }),
@@ -87,9 +87,7 @@ export function SettingsPanel() {
   }
 
   function toggleCapability(capability: ProviderCapability) {
-    setSelectedCapabilities((current) =>
-      current.includes(capability) ? current.filter((item) => item !== capability) : [...current, capability],
-    );
+    setSelectedCapabilities((current) => (current.includes(capability) ? current.filter((item) => item !== capability) : [...current, capability]));
   }
 
   async function saveProfile() {
@@ -103,16 +101,7 @@ export function SettingsPanel() {
 
   async function saveProvider() {
     if (!label.trim() || !apiKey.trim() || selectedCapabilities.length === 0) return;
-    await upsert.mutateAsync({
-      label,
-      kind,
-      baseUrl,
-      apiKey,
-      chatModel,
-      embeddingModel,
-      capabilities: selectedCapabilities,
-      isDefault: providers.data?.length === 0,
-    });
+    await upsert.mutateAsync({ label, kind, baseUrl, apiKey, chatModel, embeddingModel, capabilities: selectedCapabilities, isDefault: providers.data?.length === 0 });
   }
 
   async function removeProvider(providerId: string, providerLabel: string) {
@@ -121,36 +110,41 @@ export function SettingsPanel() {
   }
 
   return (
-    <div className="settings-layout">
-      <section className="surface section-pad profile-panel">
-        <div className="settings-section-head">
-          <div>
-            <div className="page-kicker">User profile</div>
-            <h2>Local identity</h2>
+    <div className="settings-grid">
+      <section className="card pad-lg">
+        <div className="section-head">
+          <div className="block-title">
+            <span className="ic">
+              <UserRound size={16} />
+            </span>
+            Profile
           </div>
-          <span className="settings-icon">
-            <UserRound size={20} />
+        </div>
+        <div className="row" style={{ marginBottom: 16 }}>
+          <span className="avatar" style={{ width: 52, height: 52, borderRadius: 14, fontSize: 22, display: "grid", placeItems: "center", background: "var(--surface-3)", fontWeight: 650 }}>
+            {displayName.trim().slice(0, 1).toUpperCase() || "Q"}
           </span>
+          <div>
+            <strong style={{ fontSize: 15 }}>{displayName || "Your name"}</strong>
+            <p className="faint" style={{ fontSize: 12 }}>
+              Local profile
+            </p>
+          </div>
         </div>
-
-        <div className="profile-avatar" aria-hidden="true">
-          {displayName.trim().slice(0, 1).toUpperCase() || "Q"}
-        </div>
-
-        <div className="settings-form">
-          <label>
+        <div className="stack">
+          <label className="field">
             <span>Display name</span>
             <input className="input" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </label>
-          <label>
+          <label className="field">
             <span>Timezone</span>
             <input className="input" value={timezone} onChange={(event) => setTimezone(event.target.value)} />
           </label>
-          <label>
+          <label className="field">
             <span>Default source label</span>
             <input className="input" value={defaultSource} onChange={(event) => setDefaultSource(event.target.value)} />
           </label>
-          <label>
+          <label className="field">
             <span>Canvas density</span>
             <select className="select" value={density} onChange={(event) => setDensity(event.target.value)}>
               <option value="compact">Compact</option>
@@ -158,143 +152,126 @@ export function SettingsPanel() {
               <option value="timeline-first">Timeline first</option>
             </select>
           </label>
+          <button className="btn" type="button" onClick={saveProfile} disabled={updatePreference.isPending}>
+            {updatePreference.isPending ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
+            Save profile
+          </button>
         </div>
-
-        <button className="button" type="button" onClick={saveProfile} disabled={updatePreference.isPending}>
-          {updatePreference.isPending ? <Loader2 size={16} /> : <Save size={16} />}
-          Save profile
-        </button>
+        <div className="row between" style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--border-faint)" }}>
+          <span className="faint" style={{ fontSize: 12 }}>
+            Local data
+          </span>
+          <DemoResetButton />
+        </div>
       </section>
 
-      <section className="surface section-pad provider-panel">
-        <div className="settings-section-head">
-          <div>
-            <div className="page-kicker">API keys</div>
-            <h2>Model provider</h2>
+      <div className="stack">
+        <section className="card pad-lg">
+          <div className="section-head">
+            <div className="block-title">
+              <span className="ic">
+                <KeyRound size={16} />
+              </span>
+              Model provider
+            </div>
+            <span className="chip">Stored on device</span>
           </div>
-          <span className="settings-icon">
-            <KeyRound size={20} />
-          </span>
-        </div>
 
-        <div className="provider-tabs" aria-label="Provider kind">
-          {providerKinds.map((providerKind) => (
-            <button
-              className={kind === providerKind ? "provider-tab active" : "provider-tab"}
-              key={providerKind}
-              type="button"
-              onClick={() => selectKind(providerKind)}
-            >
-              {providerKind.replaceAll("_", " ")}
-            </button>
-          ))}
-        </div>
-
-        <div className="settings-form">
-          <div className="grid-two">
-            <label>
-              <span>Provider label</span>
-              <input className="input" value={label} onChange={(event) => setLabel(event.target.value)} />
-            </label>
-            <label>
-              <span>Base URL</span>
-              <input className="input" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-            </label>
-          </div>
-          <label>
-            <span>API key</span>
-            <input
-              className="input"
-              type="password"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              placeholder="Paste API key"
-            />
-          </label>
-          <div className="grid-two">
-            <label>
-              <span>Chat model</span>
-              <input className="input" value={chatModel} onChange={(event) => setChatModel(event.target.value)} />
-            </label>
-            <label>
-              <span>Embedding model</span>
-              <input className="input" value={embeddingModel} onChange={(event) => setEmbeddingModel(event.target.value)} />
-            </label>
-          </div>
-          <div className="pill-row">
-            {capabilities.map((capability) => (
-              <button
-                className={selectedCapabilities.includes(capability) ? "pill accent" : "pill"}
-                key={capability}
-                type="button"
-                onClick={() => toggleCapability(capability)}
-              >
-                {capability}
+          <div className="seg" style={{ marginBottom: 16 }} aria-label="Provider kind">
+            {providerKinds.map((providerKind) => (
+              <button className="seg-btn" data-active={kind === providerKind} key={providerKind} type="button" onClick={() => selectKind(providerKind)}>
+                {providerKind.replaceAll("_", " ")}
               </button>
             ))}
           </div>
-        </div>
 
-        <div className="toolbar">
-          <button
-            className="button"
-            type="button"
-            onClick={saveProvider}
-            disabled={!label.trim() || !apiKey.trim() || selectedCapabilities.length === 0 || upsert.isPending}
-          >
-            {upsert.isPending ? <Loader2 size={16} /> : <Save size={16} />}
-            Save API key
-          </button>
-          <span className="pill amber">Stored locally in v0</span>
-        </div>
-      </section>
-
-      <section className="surface section-pad configured-panel">
-        <div className="settings-section-head">
-          <div>
-            <div className="page-kicker">Connected providers</div>
-            <h2>Current keys</h2>
+          <div className="stack">
+            <div className="grid-2">
+              <label className="field">
+                <span>Provider label</span>
+                <input className="input" value={label} onChange={(event) => setLabel(event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Base URL</span>
+                <input className="input" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
+              </label>
+            </div>
+            <label className="field">
+              <span>API key</span>
+              <input className="input" type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste API key" />
+            </label>
+            <div className="grid-2">
+              <label className="field">
+                <span>Chat model</span>
+                <input className="input" value={chatModel} onChange={(event) => setChatModel(event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Embedding model</span>
+                <input className="input" value={embeddingModel} onChange={(event) => setEmbeddingModel(event.target.value)} />
+              </label>
+            </div>
+            <div className="chip-row">
+              {capabilities.map((capability) => (
+                <button className={selectedCapabilities.includes(capability) ? "chip accent" : "chip"} key={capability} type="button" onClick={() => toggleCapability(capability)}>
+                  {capability}
+                </button>
+              ))}
+            </div>
+            <button className="btn" type="button" onClick={saveProvider} disabled={!label.trim() || !apiKey.trim() || selectedCapabilities.length === 0 || upsert.isPending}>
+              {upsert.isPending ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
+              Save API key
+            </button>
           </div>
-        </div>
-        {providers.isLoading ? (
-          <span className="pill">
-            <Loader2 size={13} /> Loading providers
-          </span>
-        ) : providers.data?.length ? (
-          <div className="provider-list">
-            {providers.data.map((provider) => (
-              <article className="provider-card" key={provider.id}>
-                <div className="provider-card-head">
-                  <div>
-                    <h3>{provider.label}</h3>
-                    <p>{provider.kind.replaceAll("_", " ")} · {provider.apiKeyPreview}</p>
+        </section>
+
+        <section className="card pad-lg">
+          <div className="kicker" style={{ marginBottom: 14 }}>
+            Connected providers
+          </div>
+          {providers.isLoading ? (
+            <span className="chip">
+              <Loader2 size={13} className="spin" /> Loading
+            </span>
+          ) : providers.data?.length ? (
+            <div className="stack">
+              {providers.data.map((provider) => (
+                <article className="provider-card" key={provider.id}>
+                  <div className="row between">
+                    <div className="grow">
+                      <strong style={{ fontSize: 14 }}>{provider.label}</strong>
+                      <p className="faint" style={{ fontSize: 12, marginTop: 2 }}>
+                        {provider.kind.replaceAll("_", " ")} · {provider.apiKeyPreview}
+                      </p>
+                    </div>
+                    <button
+                      className="icon-btn sm danger"
+                      type="button"
+                      title={`Remove ${provider.label}`}
+                      aria-label={`Remove ${provider.label}`}
+                      onClick={() => removeProvider(provider.id, provider.label)}
+                      disabled={deleteProvider.isPending}
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
-                  <button
-                    className="icon-button danger"
-                    type="button"
-                    title={`Remove ${provider.label}`}
-                    aria-label={`Remove ${provider.label} API key`}
-                    onClick={() => removeProvider(provider.id, provider.label)}
-                    disabled={deleteProvider.isPending}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                {provider.isDefault ? <span className="pill accent">default</span> : null}
-                <div className="pill-row">
-                  {provider.capabilities.map((capability) => (
-                    <span className="pill" key={capability}>
-                      {capability}
-                    </span>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <EmptyState>No API provider configured yet.</EmptyState>
-        )}
-      </section>
+                  <div className="chip-row">
+                    {provider.isDefault ? <span className="chip accent">default</span> : null}
+                    {provider.capabilities.map((capability) => (
+                      <span className="chip" key={capability}>
+                        {capability}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No provider yet" icon={<KeyRound size={20} />}>
+              Add an API key to unlock AI summaries, smart organization, and the adaptive canvas. Without one, Quipo still works using built-in rules.
+            </EmptyState>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

@@ -4,11 +4,7 @@ import { ReminderBoard } from "@/components/reminder-board";
 export default function RemindersPage() {
   return (
     <>
-      <PageHeading
-        kicker="Actions"
-        title="Reminders stay linked to their source memory"
-        copy="V0 supports explicit reminders, confirmed reminder proposals from capture, and browser notification permission. Calendar integration is intentionally deferred."
-      />
+      <PageHeading kicker="Reminders" title="Things to come back to" copy="Reminders stay linked to the memory they came from - whether you set them yourself or Quipo spotted them in a dump." />
       <ReminderBoard />
     </>
   );

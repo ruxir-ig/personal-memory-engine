@@ -1,0 +1,2 @@
+CREATE TYPE "public"."sync_status" AS ENUM('local_processed', 'pending_review', 'synced_to_canvas');--> statement-breakpoint
+ALTER TABLE "artifacts" ADD COLUMN "sync_status" "sync_status" DEFAULT 'local_processed' NOT NULL;

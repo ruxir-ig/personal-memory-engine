@@ -14,6 +14,36 @@ export const artifactTypeSchema = z.enum([
   "unknown",
 ]);
 
+export const memoryKindSchema = z.enum([
+  "note",
+  "link",
+  "reel",
+  "video",
+  "article",
+  "post",
+  "credential",
+  "code",
+  "task",
+  "contact",
+  "place",
+  "image",
+  "file",
+  "unknown",
+]);
+
+export const spaceAccentSchema = z.enum([
+  "amber",
+  "link",
+  "reel",
+  "video",
+  "article",
+  "credential",
+  "code",
+  "task",
+  "contact",
+  "note",
+]);
+
 export const intentTypeSchema = z.enum([
   "capture_memory",
   "summarize",
@@ -40,6 +70,12 @@ export const reminderStatusSchema = z.enum([
   "done",
   "dismissed",
   "failed",
+]);
+
+export const syncStatusSchema = z.enum([
+  "local_processed",
+  "pending_review",
+  "synced_to_canvas",
 ]);
 
 export const providerKindSchema = z.enum([
@@ -106,9 +142,12 @@ export const preferenceInputSchema = z.object({
 });
 
 export type ArtifactType = z.infer<typeof artifactTypeSchema>;
+export type MemoryKind = z.infer<typeof memoryKindSchema>;
+export type SpaceAccent = z.infer<typeof spaceAccentSchema>;
 export type IntentType = z.infer<typeof intentTypeSchema>;
 export type PreferenceCategory = z.infer<typeof preferenceCategorySchema>;
 export type ReminderStatus = z.infer<typeof reminderStatusSchema>;
+export type SyncStatus = z.infer<typeof syncStatusSchema>;
 export type ProviderKind = z.infer<typeof providerKindSchema>;
 export type ProviderCapability = z.infer<typeof providerCapabilitySchema>;
 export type CaptureInput = z.infer<typeof captureInputSchema>;
@@ -118,11 +157,31 @@ export type ReminderInput = z.infer<typeof reminderInputSchema>;
 export type ProviderInput = z.infer<typeof providerInputSchema>;
 export type PreferenceInput = z.infer<typeof preferenceInputSchema>;
 
+export type StructuredFields = {
+  url?: string;
+  host?: string;
+  platform?: string;
+  mediaTitle?: string;
+  author?: string;
+  thumbnailUrl?: string;
+  language?: string;
+  secretLabel?: string;
+  secretMasked?: string;
+  secretLength?: number;
+  service?: string;
+  [key: string]: unknown;
+};
+
 export type Artifact = {
   id: string;
   type: ArtifactType;
+  kind: MemoryKind;
   title: string;
   sourceLabel: string;
+  spaceId?: string;
+  structured?: StructuredFields;
+  pinned?: boolean;
+  archived?: boolean;
   originalPath?: string;
   mimeType?: string;
   hash?: string;
@@ -133,7 +192,20 @@ export type Artifact = {
   retentionDecision: "keep_original" | "summary_only" | "review";
   privacy: "local" | "provider_allowed" | "private";
   status: "ready" | "processing" | "needs_review" | "failed";
+  syncStatus: SyncStatus;
   metadata: Record<string, unknown>;
+};
+
+export type Space = {
+  id: string;
+  slug: string;
+  title: string;
+  description?: string;
+  icon: string;
+  accent: SpaceAccent;
+  createdBy: "ai" | "user" | "system";
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Chunk = {
@@ -276,6 +348,7 @@ export type ChatAnswer = {
 
 export type DashboardSnapshot = {
   artifacts: Artifact[];
+  spaces: Space[];
   summaries: SummaryRecord[];
   intents: IntentRecord[];
   reminders: Reminder[];
@@ -285,8 +358,54 @@ export type DashboardSnapshot = {
   counts: {
     artifacts: number;
     chunks: number;
+    spaces: number;
     inbox: number;
     reminders: number;
     providers: number;
+    localProcessed: number;
+    pendingReview: number;
+    syncedToCanvas: number;
   };
 };
+
+/* ---- Adaptive canvas layout (AI- or rule-generated) ---- */
+
+export const canvasBlockTypeSchema = z.enum([
+  "spotlight",
+  "spaces",
+  "reel_strip",
+  "vault",
+  "today",
+  "recent",
+  "reading",
+  "code_shelf",
+  "review",
+  "ask",
+]);
+
+export type CanvasBlockType = z.infer<typeof canvasBlockTypeSchema>;
+
+export const canvasBlockSchema = z.object({
+  id: z.string(),
+  type: canvasBlockTypeSchema,
+  title: z.string().min(1).max(80),
+  subtitle: z.string().max(160).optional(),
+  span: z.enum(["2", "3", "4", "6"]).default("3"),
+  itemIds: z.array(z.string()).max(20).default([]),
+  spaceIds: z.array(z.string()).max(12).default([]),
+  suggestions: z.array(z.string().max(120)).max(5).default([]),
+  note: z.string().max(280).optional(),
+});
+
+export type CanvasBlock = z.infer<typeof canvasBlockSchema>;
+
+export const canvasLayoutSchema = z.object({
+  generatedAt: z.string(),
+  generatedBy: z.enum(["ai", "rules"]),
+  model: z.string().optional(),
+  greetingTitle: z.string().max(120).optional(),
+  greetingSubtitle: z.string().max(220).optional(),
+  blocks: z.array(canvasBlockSchema).max(14),
+});
+
+export type CanvasLayout = z.infer<typeof canvasLayoutSchema>;

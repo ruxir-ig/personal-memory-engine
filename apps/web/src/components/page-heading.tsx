@@ -12,13 +12,13 @@ export function PageHeading({
   actions?: ReactNode;
 }) {
   return (
-    <header className="page-header">
+    <header className="page-head">
       <div>
-        <div className="page-kicker">{kicker}</div>
+        <div className="kicker">{kicker}</div>
         <h1 className="page-title">{title}</h1>
         {copy ? <p className="page-copy">{copy}</p> : null}
       </div>
-      {actions ? <div className="toolbar">{actions}</div> : null}
+      {actions ? <div className="head-actions">{actions}</div> : null}
     </header>
   );
 }
