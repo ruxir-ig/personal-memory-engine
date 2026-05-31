@@ -20,7 +20,7 @@ export function ItemCard({ item, summary }: { item: Artifact; summary?: SummaryR
       <SecretCard
         label={str(s.secretLabel) ?? item.title}
         masked={str(s.secretMasked) ?? "\u2022\u2022\u2022\u2022\u2022\u2022"}
-        value={str(s.secretValue)}
+        secretVaultId={str(s.secretVaultId)}
         service={str(s.service)}
       />
     );

@@ -3,20 +3,22 @@
 import Link from "next/link";
 import { ArrowUpRight, Loader2, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { trpc } from "@/trpc/client";
+import { useAskMutation } from "@/client/hooks";
 import { EmptyState } from "./empty-state";
 
-const starters = ["What did I save about AI?", "Which API keys do I have?", "Show reels I wanted to watch", "Summarize what I saved this week"];
-
-export function ChatPanel() {
+export function ChatPanel({ suggestions }: { suggestions: string[] }) {
   const [question, setQuestion] = useState("");
-  const ask = trpc.chat.ask.useMutation();
+  const ask = useAskMutation();
 
   function run(value: string) {
     const q = value.trim();
     if (!q) return;
     setQuestion(q);
-    ask.mutate({ question: q });
+    ask.mutate({
+      question: q,
+      clientNow: new Date().toISOString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
   }
 
   return (
@@ -39,11 +41,11 @@ export function ChatPanel() {
           </button>
         </form>
 
-        {!ask.data ? (
+        {!ask.data && suggestions.length > 0 ? (
           <div className="ask-suggest">
-            {starters.map((starter) => (
-              <button key={starter} type="button" onClick={() => run(starter)}>
-                {starter}
+            {suggestions.map((suggestion) => (
+              <button key={suggestion} type="button" onClick={() => run(suggestion)}>
+                {suggestion}
               </button>
             ))}
           </div>
@@ -62,6 +64,11 @@ export function ChatPanel() {
             {ask.data.uncertainty ? (
               <p className="faint" style={{ fontSize: 12 }}>
                 {ask.data.uncertainty}
+              </p>
+            ) : null}
+            {ask.data.toolsUsed && ask.data.toolsUsed.length > 0 ? (
+              <p className="faint" style={{ fontSize: 12 }}>
+                Tools: {ask.data.toolsUsed.map((tool) => `${tool.id} (${tool.summary})`).join(" · ")}
               </p>
             ) : null}
             {ask.data.citations.map((citation) => (

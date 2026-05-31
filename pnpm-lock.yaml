@@ -10,6 +10,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@ffmpeg/ffmpeg':
+        specifier: ^0.12.15
+        version: 0.12.15
+      '@ffmpeg/util':
+        specifier: ^0.12.2
+        version: 0.12.2
       '@pme/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -33,10 +39,13 @@ importers:
         version: 4.3.0
       drizzle-orm:
         specifier: latest
-        version: 0.45.2(postgres@3.4.9)
+        version: 0.45.2(@types/sql.js@1.4.11)(postgres@3.4.9)(sql.js@1.14.1)
       geist:
         specifier: ^1.7.1
         version: 1.7.1(next@16.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6))
+      idb:
+        specifier: ^8.0.3
+        version: 8.0.3
       lucide-react:
         specifier: latest
         version: 1.16.0(react@19.2.6)
@@ -46,6 +55,9 @@ importers:
       next:
         specifier: latest
         version: 16.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      playwright:
+        specifier: latest
+        version: 1.60.0
       postgres:
         specifier: latest
         version: 3.4.9
@@ -55,6 +67,9 @@ importers:
       react-dom:
         specifier: latest
         version: 19.2.6(react@19.2.6)
+      sql.js:
+        specifier: ^1.14.1
+        version: 1.14.1
       superjson:
         specifier: latest
         version: 2.2.6
@@ -74,6 +89,9 @@ importers:
       '@types/react-dom':
         specifier: latest
         version: 19.2.3(@types/react@19.2.15)
+      '@types/sql.js':
+        specifier: ^1.4.11
+        version: 1.4.11
       drizzle-kit:
         specifier: latest
         version: 0.31.10
@@ -574,6 +592,18 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@ffmpeg/ffmpeg@0.12.15':
+    resolution: {integrity: sha512-1C8Obr4GsN3xw+/1Ww6PFM84wSQAGsdoTuTWPOj2OizsRDLT4CXTaVjPhkw6ARyDus1B9X/L2LiXHqYYsGnRFw==}
+    engines: {node: '>=18.x'}
+
+  '@ffmpeg/types@0.12.4':
+    resolution: {integrity: sha512-k9vJQNBGTxE5AhYDtOYR5rO5fKsspbg51gbcwtbkw2lCdoIILzklulcjJfIDwrtn7XhDeF2M+THwJ2FGrLeV6A==}
+    engines: {node: '>=16.x'}
+
+  '@ffmpeg/util@0.12.2':
+    resolution: {integrity: sha512-ouyoW+4JB7WxjeZ2y6KpRvB+dLp7Cp4ro8z0HIVpZVCM7AwFlHa0c4R8Y/a4M3wMqATpYKhC7lSFHQ0T11MEDw==}
+    engines: {node: '>=18.x'}
+
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
     engines: {node: '>=18'}
@@ -923,6 +953,9 @@ packages:
     peerDependencies:
       typescript: '>=5.7.2'
 
+  '@types/emscripten@1.41.5':
+    resolution: {integrity: sha512-cMQm7pxu6BxtHyqJ7mQZ2kXWV5SLmugybFdHCBbJ5eHzOo6VhBckEgAT3//rP5FwPHNPeEiq4SmQ5ucBwsOo4Q==}
+
   '@types/node@25.9.1':
     resolution: {integrity: sha512-xfrlY7UD5rMJk3ZVJP8BNzS28J36YJg+xp+LPXV1TdWxr8uMH5A860QNxYDGQe/ylDSgjxE52Q9VnO7p75tJxg==}
 
@@ -933,6 +966,9 @@ packages:
 
   '@types/react@19.2.15':
     resolution: {integrity: sha512-eRwcGNHve+E8qtEQSSRl6urh+rFop4v8gm6O8rGv25CodbvFdLjA1vVQ1KkiFE0w0UPOnb8tDiFKL5lp0rtY5Q==}
+
+  '@types/sql.js@1.4.11':
+    resolution: {integrity: sha512-QXIx38p2ZThJaK9vP5ZdqdlRe1FG9I8SmCZOS7FHfB/2qPAjZwkL7/vlfPg6N/oWHuuOaGg/P/IRwfP2W0kWVQ==}
 
   baseline-browser-mapping@2.10.32:
     resolution: {integrity: sha512-wbPvpyjJPC0zdfdKXxqEL3Ea+bOMD/87X4lftiJkkaBiuG6ALQy1SLmEd7BSmVCuwCQsBrCamgBoLyfFDD1EPg==}
@@ -1081,6 +1117,11 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -1096,6 +1137,9 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  idb@8.0.3:
+    resolution: {integrity: sha512-LtwtVyVYO5BqRvcsKuB2iUMnHwPVByPCXFXOpuU96IZPPoPN6xjOGxZQ74pgSVVLQWtUOYgyeL4GE98BY5D3wg==}
 
   is-what@5.5.0:
     resolution: {integrity: sha512-oG7cgbmg5kLYae2N5IVd3jm2s+vldjxJzK1pcu9LfpGuQ93MQSzo0okvRna+7y5ifrD+20FE8FvjusyGaz14fw==}
@@ -1221,6 +1265,16 @@ packages:
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
+  playwright-core@1.60.0:
+    resolution: {integrity: sha512-9bW6zvX/m0lEbgTKJ6YppOKx8H3VOPBMOCFh2irXFOT4BbHgrx5hPjwJYLT40Lu+4qtD36qKc/Hn56StUW57IA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.60.0:
+    resolution: {integrity: sha512-hheHdokM8cdqCb0lcE3s+zT4t4W+vvjpGxsZlDnikarzx8tSzMebh3UiFtgqwFwnTnjYQcsyMF8ei2mCO/tpeA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   postcss@8.4.31:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
     engines: {node: ^10 || ^12 || >=14}
@@ -1267,6 +1321,9 @@ packages:
   source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
+
+  sql.js@1.14.1:
+    resolution: {integrity: sha512-gcj8zBWU5cFsi9WUP+4bFNXAyF1iRpA3LLyS/DP5xlrNzGmPIizUeBggKa8DbDwdqaKwUcTEnChtd2grWo/x/A==}
 
   styled-jsx@5.1.6:
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
@@ -1554,6 +1611,14 @@ snapshots:
   '@esbuild/win32-x64@0.28.0':
     optional: true
 
+  '@ffmpeg/ffmpeg@0.12.15':
+    dependencies:
+      '@ffmpeg/types': 0.12.4
+
+  '@ffmpeg/types@0.12.4': {}
+
+  '@ffmpeg/util@0.12.2': {}
+
   '@img/colour@1.1.0':
     optional: true
 
@@ -1793,6 +1858,8 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
+  '@types/emscripten@1.41.5': {}
+
   '@types/node@25.9.1':
     dependencies:
       undici-types: 7.24.6
@@ -1804,6 +1871,11 @@ snapshots:
   '@types/react@19.2.15':
     dependencies:
       csstype: 3.2.3
+
+  '@types/sql.js@1.4.11':
+    dependencies:
+      '@types/emscripten': 1.41.5
+      '@types/node': 25.9.1
 
   baseline-browser-mapping@2.10.32: {}
 
@@ -1832,9 +1904,11 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.22.3
 
-  drizzle-orm@0.45.2(postgres@3.4.9):
+  drizzle-orm@0.45.2(@types/sql.js@1.4.11)(postgres@3.4.9)(sql.js@1.14.1):
     optionalDependencies:
+      '@types/sql.js': 1.4.11
       postgres: 3.4.9
+      sql.js: 1.14.1
 
   enhanced-resolve@5.22.0:
     dependencies:
@@ -1924,6 +1998,9 @@ snapshots:
       '@esbuild/win32-ia32': 0.28.0
       '@esbuild/win32-x64': 0.28.0
 
+  fsevents@2.3.2:
+    optional: true
+
   fsevents@2.3.3:
     optional: true
 
@@ -1936,6 +2013,8 @@ snapshots:
       resolve-pkg-maps: 1.0.0
 
   graceful-fs@4.2.11: {}
+
+  idb@8.0.3: {}
 
   is-what@5.5.0: {}
 
@@ -2028,6 +2107,14 @@ snapshots:
 
   picocolors@1.1.1: {}
 
+  playwright-core@1.60.0: {}
+
+  playwright@1.60.0:
+    dependencies:
+      playwright-core: 1.60.0
+    optionalDependencies:
+      fsevents: 2.3.2
+
   postcss@8.4.31:
     dependencies:
       nanoid: 3.3.12
@@ -2096,6 +2183,8 @@ snapshots:
       source-map: 0.6.1
 
   source-map@0.6.1: {}
+
+  sql.js@1.14.1: {}
 
   styled-jsx@5.1.6(react@19.2.6):
     dependencies:

@@ -19,7 +19,6 @@ import {
   listSpaces,
   listTimeline,
   querySearch,
-  regenerateCanvas,
   setItemFlags,
   updatePreference,
   upsertProvider,
@@ -32,7 +31,6 @@ export const appRouter = createTRPCRouter({
   }),
   canvas: createTRPCRouter({
     layout: publicProcedure.input(z.object({ clientNow: z.string().optional() }).optional()).query(({ input }) => getCanvasLayout(input?.clientNow)),
-    regenerate: publicProcedure.input(z.object({ clientNow: z.string().optional() }).optional()).mutation(({ input }) => regenerateCanvas(input?.clientNow)),
   }),
   memory: createTRPCRouter({
     capture: publicProcedure.input(captureInputSchema).mutation(({ input }) => captureText(input)),

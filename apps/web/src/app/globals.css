@@ -1592,6 +1592,35 @@ p {
   max-width: 220px;
   font-size: 12.5px;
 }
+.composer-answer {
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--inset);
+}
+.composer-answer p {
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.composer-answer > span {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.composer-cites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.composer-cites a {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 5px 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+  background: var(--surface);
+}
 .composer-row {
   display: flex;
   align-items: flex-end;

@@ -2,9 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from "react";
-import { ChevronDown, FileText, Loader2, Paperclip, Send, Sparkles, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, ChevronDown, FileText, Loader2, Mic, Paperclip, Send, Sparkles, X } from "lucide-react";
 import type { MemoryKind } from "@pme/shared";
-import { trpc } from "@/trpc/client";
+import {
+  useAskMutation,
+  useCaptureMutation,
+  useImportFileMutation,
+  useInvalidateMemory,
+  useProviders,
+} from "@/client/hooks";
 import { kindMeta } from "@/lib/registry";
 
 type AttachmentDraft = { id: string; file: File; previewUrl?: string };
@@ -46,6 +53,18 @@ function guessKind(text: string): MemoryKind | null {
   return "note";
 }
 
+function isQuestionLike(text: string) {
+  const t = text.trim();
+  if (!t) return false;
+  if (/[?？]$/.test(t)) return true;
+  if (/^(what|who|where|when|why|how|which|show|find|search|summarize|summarise|tell me|do i|did i|can you|list)\b/i.test(t)) return true;
+  return false;
+}
+
+function isSaveLike(text: string) {
+  return /^(remember|save|store|capture|file this|add this)\b/i.test(text.trim()) || /\b(remember that|save this|store this)\b/i.test(text);
+}
+
 export function Composer() {
   const router = useRouter();
   const [text, setText] = useState("");
@@ -58,9 +77,11 @@ export function Composer() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const attachmentsRef = useRef<AttachmentDraft[]>([]);
-  const utils = trpc.useUtils();
-  const providers = trpc.provider.list.useQuery(undefined, { staleTime: 60_000 });
-  const capture = trpc.memory.capture.useMutation();
+  const invalidateMemory = useInvalidateMemory();
+  const providers = useProviders();
+  const capture = useCaptureMutation();
+  const ask = useAskMutation();
+  const importFile = useImportFileMutation();
 
   useEffect(() => {
     attachmentsRef.current = attachments;
@@ -82,15 +103,7 @@ export function Composer() {
   }, [text]);
 
   async function invalidateMemoryViews() {
-    await Promise.all([
-      utils.canvas.layout.invalidate(),
-      utils.dashboard.snapshot.invalidate(),
-      utils.space.list.invalidate(),
-      utils.search.query.invalidate(),
-      utils.inbox.list.invalidate(),
-      utils.reminder.list.invalidate(),
-      utils.preference.list.invalidate(),
-    ]);
+    await invalidateMemory();
     router.refresh();
   }
 
@@ -110,18 +123,30 @@ export function Composer() {
   }
 
   async function uploadFile(file: File) {
-    const form = new FormData();
-    form.set("file", file);
-    const response = await fetch("/api/uploads", { method: "POST", body: form });
-    if (!response.ok) throw new Error(`${file.name} failed to import`);
+    await importFile.mutateAsync(file);
   }
 
   async function submitCapture() {
     const prompt = text.trim();
     if (!prompt && attachments.length === 0) return;
+    const shouldAsk = prompt && attachments.length === 0 && isQuestionLike(prompt);
+    const shouldSaveAndAsk = prompt && attachments.length === 0 && shouldAsk && isSaveLike(prompt);
 
     setIsSubmitting(true);
     try {
+      if (shouldAsk && !shouldSaveAndAsk) {
+        setStatusMessage("Searching memory...");
+        await ask.mutateAsync({
+          question: prompt,
+          clientNow: new Date().toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+        setIsExpanded(true);
+        setText("");
+        return;
+      }
+
+      ask.reset();
       setStatusMessage(prompt ? "Organizing..." : "Importing files...");
       if (prompt) {
         await capture.mutateAsync({
@@ -131,6 +156,19 @@ export function Composer() {
           clientNow: new Date().toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         });
+      }
+      if (shouldSaveAndAsk) {
+        await invalidateMemoryViews();
+        setStatusMessage("Saved. Searching memory...");
+        await ask.mutateAsync({
+          question: prompt,
+          clientNow: new Date().toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+        setText("");
+        setSourceLabel("");
+        setIsExpanded(true);
+        return;
       }
       if (attachments.length > 0) {
         setStatusMessage(`Importing ${attachments.length} file${attachments.length === 1 ? "" : "s"}...`);
@@ -177,7 +215,9 @@ export function Composer() {
     void submitCapture();
   }
 
-  const isWorking = capture.isPending || isSubmitting;
+  const isWorking = capture.isPending || ask.isPending || isSubmitting;
+  const isAskMode = Boolean(text.trim()) && attachments.length === 0 && isQuestionLike(text) && !isSaveLike(text);
+  const isSaveAndAskMode = Boolean(text.trim()) && attachments.length === 0 && isQuestionLike(text) && isSaveLike(text);
   const canSubmit = Boolean(text.trim() || attachments.length > 0) && !isWorking;
   const guessed = useMemo(() => guessKind(text), [text]);
   const hasProvider = providers.data?.some((provider) => provider.capabilities.includes("chat"));
@@ -214,6 +254,11 @@ export function Composer() {
                 <Sparkles size={13} />
                 <strong>{hasProvider ? "AI on" : "AI off"}</strong>
                 <span>{hasProvider ? "enriching" : "rules only"}</span>
+              </span>
+              <span className="signal" data-active={isAskMode || isSaveAndAskMode}>
+                {isAskMode ? <ArrowUpRight size={13} /> : <Send size={13} />}
+                <strong>{isSaveAndAskMode ? "Save + ask" : isAskMode ? "Ask" : "Save"}</strong>
+                <span>{isAskMode ? "from memory" : "to memory"}</span>
               </span>
               {statusMessage ? (
                 <span className="signal" data-active>
@@ -253,6 +298,31 @@ export function Composer() {
             <div className="composer-meta">
               <input className="input" value={sourceLabel} onChange={(event) => setSourceLabel(event.target.value)} placeholder="Source label (optional)" aria-label="Source label" />
             </div>
+
+            {ask.data ? (
+              <div className="composer-answer">
+                <p>{ask.data.answer}</p>
+                {ask.data.uncertainty ? <span>{ask.data.uncertainty}</span> : null}
+                {ask.data.toolsUsed && ask.data.toolsUsed.length > 0 ? (
+                  <div className="composer-cites">
+                    {ask.data.toolsUsed.map((tool) => (
+                      <span key={tool.id}>
+                        {tool.id}: {tool.summary}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {ask.data.citations.length > 0 ? (
+                  <div className="composer-cites">
+                    {ask.data.citations.slice(0, 3).map((citation) => (
+                      <Link key={citation.chunkId} href={`/item/${citation.artifactId}`}>
+                        {citation.title}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -274,17 +344,23 @@ export function Composer() {
             ref={textRef}
             className="composer-input"
             value={text}
-            onChange={(event) => setText(event.target.value)}
+            onChange={(event) => {
+              if (ask.data) ask.reset();
+              setText(event.target.value);
+            }}
             onPaste={handlePaste}
             onKeyDown={handleKeyDown}
-            placeholder="Drop anything - a link, a key, a reel, a thought..."
+            placeholder="Ask, save, or drop anything..."
             rows={1}
           />
           <button className="icon-btn bare" type="button" aria-label={showDetails ? "Collapse" : "Expand"} onClick={() => setIsExpanded((current) => !current)}>
             <ChevronDown size={18} style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </button>
-          <button className="btn" type="button" aria-label="Save" onClick={submitCapture} disabled={!canSubmit}>
-            {isWorking ? <Loader2 size={17} className="spin" /> : <Send size={17} />}
+          <button className="btn" type="button" aria-label={isAskMode ? "Ask" : "Save"} onClick={submitCapture} disabled={!canSubmit}>
+            {isWorking ? <Loader2 size={17} className="spin" /> : isAskMode ? <ArrowUpRight size={17} /> : <Send size={17} />}
+          </button>
+          <button className="icon-btn bare" type="button" aria-label="Voice input" disabled title="Voice input">
+            <Mic size={16} />
           </button>
         </div>
       </section>

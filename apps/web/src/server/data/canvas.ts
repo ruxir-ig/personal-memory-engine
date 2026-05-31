@@ -1,8 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Artifact, CanvasBlock, CanvasLayout, PreferenceRecord } from "@pme/shared";
 import { generateCanvasWithProvider, type CanvasState } from "@/server/ai/provider";
 import { getDefaultAiProvider } from "./providers";
 import { type MemoryData, now, readData, writeData } from "./store";
+
+const LAYOUT_TTL_MS = 30 * 60 * 1000;
 
 function isToday(value?: string) {
   if (!value) return false;
@@ -36,6 +38,13 @@ function activeItems(data: MemoryData) {
   return data.artifacts.filter((a) => !a.archived).sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
 }
 
+function layoutPreferences(preferences: PreferenceRecord[]) {
+  return preferences
+    .filter((p) => p.confirmed && ["ui", "ranking", "capture"].includes(p.category))
+    .map((p) => ({ category: p.category, key: p.key, value: p.value }))
+    .slice(0, 16);
+}
+
 export function buildCanvasState(data: MemoryData, clientNow?: string): CanvasState {
   const items = activeItems(data);
   const spaceTitle = (spaceId?: string) => data.spaces.find((s) => s.id === spaceId)?.title;
@@ -62,12 +71,53 @@ export function buildCanvasState(data: MemoryData, clientNow?: string): CanvasSt
       count: items.filter((i) => i.spaceId === space.id).length,
     })),
     recentItems: items.slice(0, 8).map((i) => ({ id: i.id, kind: i.kind, title: i.title, spaceTitle: spaceTitle(i.spaceId) })),
+    preferences: layoutPreferences(data.preferences),
     reelIds: items.filter((i) => WATCH_KINDS.has(i.kind)).slice(0, 10).map((i) => i.id),
     readingIds: items.filter((i) => READING_KINDS.has(i.kind)).slice(0, 8).map((i) => i.id),
     codeIds: items.filter((i) => i.kind === "code").slice(0, 6).map((i) => i.id),
     vaultCount: items.filter((i) => i.kind === "credential").length,
     todayCount,
   };
+}
+
+function canvasStateSignature(state: CanvasState) {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        partOfDay: state.partOfDay,
+        counts: state.counts,
+        spaces: state.spaces,
+        recentItems: state.recentItems,
+        preferences: state.preferences,
+        reelIds: state.reelIds,
+        readingIds: state.readingIds,
+        codeIds: state.codeIds,
+        vaultCount: state.vaultCount,
+        todayCount: state.todayCount,
+      }),
+    )
+    .digest("hex")
+    .slice(0, 24);
+}
+
+function timeMs(value?: string) {
+  const parsed = value ? Date.parse(value) : NaN;
+  return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function finalizeLayout(layout: CanvasLayout, state: CanvasState, clientNow?: string): CanvasLayout {
+  return {
+    ...layout,
+    stateSignature: canvasStateSignature(state),
+    expiresAt: new Date(timeMs(clientNow) + LAYOUT_TTL_MS).toISOString(),
+  };
+}
+
+function layoutIsFresh(layout: CanvasLayout, state: CanvasState, clientNow?: string) {
+  if (layout.stateSignature !== canvasStateSignature(state)) return false;
+  const expiresAt = layout.expiresAt ? Date.parse(layout.expiresAt) : NaN;
+  if (!Number.isFinite(expiresAt)) return false;
+  return expiresAt > timeMs(clientNow);
 }
 
 function block(partial: {
@@ -128,15 +178,6 @@ export function buildRulesLayout(state: CanvasState): CanvasLayout {
     blocks.push(block({ type: "recent", title: "Just dumped", span: "4", itemIds: state.recentItems.map((i) => i.id) }));
   }
 
-  blocks.push(
-    block({
-      type: "ask",
-      title: "Ask your memory",
-      span: state.recentItems.length > 0 ? "2" : "6",
-      suggestions: ["What did I save about AI?", "Show my reels to watch", "Which keys do I have?"],
-    }),
-  );
-
   const name = state.displayName;
   return {
     generatedAt: now(),
@@ -173,35 +214,27 @@ export function markCanvasStale(data: MemoryData) {
   data.canvasLayout = undefined;
 }
 
-async function produceLayout(data: MemoryData, clientNow?: string): Promise<CanvasLayout> {
-  const state = buildCanvasState(data, clientNow);
+async function produceLayout(data: MemoryData, clientNow?: string, state = buildCanvasState(data, clientNow)): Promise<CanvasLayout> {
   const provider = getDefaultAiProvider(data);
   if (provider && state.counts.items > 0) {
     try {
       const aiLayout = sanitizeLayout(await generateCanvasWithProvider({ provider, state }), data);
-      if (aiLayout.blocks.length >= 2) return aiLayout;
+      if (aiLayout.blocks.length >= 2) return finalizeLayout(aiLayout, state, clientNow);
     } catch {
       /* fall back to rules */
     }
   }
-  return buildRulesLayout(state);
+  return finalizeLayout(buildRulesLayout(state), state, clientNow);
 }
 
 export async function getCanvasLayout(clientNow?: string): Promise<CanvasLayout> {
   const data = await readData();
+  const state = buildCanvasState(data, clientNow);
   if (data.canvasLayout) {
     const sanitized = sanitizeLayout(data.canvasLayout, data);
-    if (sanitized.blocks.length > 0) return sanitized;
+    if (sanitized.blocks.length > 0 && layoutIsFresh(sanitized, state, clientNow)) return sanitized;
   }
-  const layout = await produceLayout(data, clientNow);
-  data.canvasLayout = layout;
-  await writeData(data);
-  return layout;
-}
-
-export async function regenerateCanvas(clientNow?: string): Promise<CanvasLayout> {
-  const data = await readData();
-  const layout = await produceLayout(data, clientNow);
+  const layout = await produceLayout(data, clientNow, state);
   data.canvasLayout = layout;
   await writeData(data);
   return layout;

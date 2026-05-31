@@ -112,6 +112,8 @@ export const searchInputSchema = z.object({
 
 export const chatInputSchema = z.object({
   question: z.string().min(1).max(5000),
+  clientNow: z.string().datetime().optional(),
+  timezone: z.string().min(1).max(120).optional(),
 });
 
 export const reminderInputSchema = z.object({
@@ -168,6 +170,8 @@ export type StructuredFields = {
   secretLabel?: string;
   secretMasked?: string;
   secretLength?: number;
+  secretVaultId?: string;
+  secretEncrypted?: boolean;
   service?: string;
   [key: string]: unknown;
 };
@@ -344,6 +348,10 @@ export type ChatAnswer = {
     quote: string;
   }>;
   uncertainty: string;
+  toolsUsed?: Array<{
+    id: string;
+    summary: string;
+  }>;
 };
 
 export type DashboardSnapshot = {
@@ -403,6 +411,8 @@ export const canvasLayoutSchema = z.object({
   generatedAt: z.string(),
   generatedBy: z.enum(["ai", "rules"]),
   model: z.string().optional(),
+  stateSignature: z.string().max(80).optional(),
+  expiresAt: z.string().optional(),
   greetingTitle: z.string().max(120).optional(),
   greetingSubtitle: z.string().max(220).optional(),
   blocks: z.array(canvasBlockSchema).max(14),

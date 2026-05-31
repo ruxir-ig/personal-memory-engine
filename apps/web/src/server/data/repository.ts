@@ -24,24 +24,25 @@ import type {
   TimelineEvent,
 } from "@pme/shared";
 import { answerMemoryWithProvider, processMemoryWithProvider, type AiMemoryPacket, type OpenAICompatibleProvider } from "@/server/ai/provider";
+import { askMemoryWithAgent } from "@/server/ai/agent";
 import { accentForKind, classifyCapture, fileSpaceSuggestion, type SpaceSuggestion } from "./classify";
 import { markCanvasStale } from "./canvas";
 import { getDefaultAiProvider } from "./providers";
 import {
   type MemoryData,
+  databasePath,
   emptyData,
   getArtifactVaultRoot,
   now,
   providerForClient,
   readData,
-  storePath,
   writeData,
 } from "./store";
 
 export { getArtifactVaultRoot } from "./store";
 export { listProviders, upsertProvider, deleteProvider } from "./providers";
 export { listSpaces, getSpaceBySlug } from "./spaces";
-export { getCanvasLayout, regenerateCanvas } from "./canvas";
+export { getCanvasLayout } from "./canvas";
 
 type CaptureResult = {
   artifact: Artifact;
@@ -773,9 +774,12 @@ export async function createReminder(input: ReminderInput) {
 }
 
 export async function resetDemoStore() {
+  const existing = await readData();
+  const cleaned = emptyData();
+  cleaned.providers = existing.providers;
   await rm(getArtifactVaultRoot(), { recursive: true, force: true });
-  await writeData(emptyData());
-  return { ok: true, storePath: storePath(), resetAt: now() };
+  await writeData(cleaned);
+  return { ok: true, databasePath: databasePath(), resetAt: now(), providersPreserved: cleaned.providers.length };
 }
 
 /* ----------------------------- preferences ----------------------------- */
@@ -832,9 +836,11 @@ function buildExtractiveAnswer(question: string, results: SearchResult[]): ChatA
   };
 }
 
-export async function askMemory(input: { question: string }): Promise<ChatAnswer> {
+export async function askMemory(input: { question: string; clientNow?: string; timezone?: string }): Promise<ChatAnswer> {
   const results = await querySearch({ query: input.question, artifactTypes: [], limit: 6 });
-  if (results.length === 0) {
+  const provider = getDefaultAiProvider(await readData());
+
+  if (results.length === 0 && !provider) {
     return {
       answer: "I could not find grounded evidence for that in your memory yet. Dump a note, link, or file, then ask again.",
       citations: [],
@@ -842,7 +848,6 @@ export async function askMemory(input: { question: string }): Promise<ChatAnswer
     };
   }
 
-  const provider = getDefaultAiProvider(await readData());
   if (provider) {
     try {
       const candidates = results.map((result) => ({
@@ -851,23 +856,51 @@ export async function askMemory(input: { question: string }): Promise<ChatAnswer
         title: result.artifact.title,
         source: result.artifact.sourceLabel || undefined,
         text: result.chunk.text,
+        artifactKind: result.artifact.kind,
+        artifactType: result.artifact.type,
       }));
-      const ai = await answerMemoryWithProvider({ provider, question: input.question, candidates });
+
+      const ai = await askMemoryWithAgent({
+        provider,
+        question: input.question,
+        candidates,
+        timezone: input.timezone ?? "UTC",
+        clientNow: input.clientNow,
+      });
+
       if (ai.answer) {
         const byChunk = new Map(candidates.map((candidate) => [candidate.chunkId, candidate]));
         const used = [...new Set(ai.citedChunkIds)]
           .map((id) => byChunk.get(id))
           .filter((candidate): candidate is (typeof candidates)[number] => Boolean(candidate));
         const grounded = (used.length > 0 ? used : candidates.slice(0, 3)).slice(0, 4);
+        const toolSummaries = ai.toolResults
+          .filter((result) => ai.toolsUsed.includes(result.toolId))
+          .map((result) => ({ id: result.toolId, summary: result.summary }));
+
         return {
           answer: ai.answer,
-          citations: grounded.map((candidate) => ({ artifactId: candidate.artifactId, chunkId: candidate.chunkId, title: candidate.title, quote: candidate.text.slice(0, 260) })),
-          uncertainty: ai.uncertainty ?? "Grounded in retrieved memories.",
+          citations: grounded.map((candidate) => ({
+            artifactId: candidate.artifactId,
+            chunkId: candidate.chunkId,
+            title: candidate.title,
+            quote: candidate.text.slice(0, 260),
+          })),
+          uncertainty: ai.uncertainty ?? (toolSummaries.length > 0 ? "Answer uses saved memory plus tool results." : "Grounded in retrieved memories."),
+          toolsUsed: toolSummaries.length > 0 ? toolSummaries : undefined,
         };
       }
     } catch {
-      /* fall back to the extractive answer below */
+      /* fall back below */
     }
+  }
+
+  if (results.length === 0) {
+    return {
+      answer: "I could not find grounded evidence for that in your memory yet. Dump a note, link, or file, then ask again.",
+      citations: [],
+      uncertainty: "No matching memories were retrieved.",
+    };
   }
 
   return buildExtractiveAnswer(input.question, results);

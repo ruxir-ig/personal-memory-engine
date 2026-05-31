@@ -3,19 +3,12 @@
 import { Bell, CalendarPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { formatDateTime } from "@/lib/utils";
-import { trpc } from "@/trpc/client";
+import { useCreateReminderMutation, useReminders } from "@/client/hooks";
 import { EmptyState } from "./empty-state";
 
 export function ReminderBoard() {
-  const utils = trpc.useUtils();
-  const reminders = trpc.reminder.list.useQuery();
-  const create = trpc.reminder.create.useMutation({
-    onSuccess: async () => {
-      setTitle("");
-      setDueAt("");
-      await Promise.all([utils.reminder.list.invalidate(), utils.dashboard.snapshot.invalidate(), utils.canvas.layout.invalidate()]);
-    },
-  });
+  const reminders = useReminders();
+  const create = useCreateReminderMutation();
   const [title, setTitle] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [notificationMessage, setNotificationMessage] = useState("");
@@ -33,6 +26,8 @@ export function ReminderBoard() {
   async function submitReminder() {
     if (!title.trim() || !dueAt) return;
     await create.mutateAsync({ title, dueAt: new Date(dueAt).toISOString(), sourceText: title, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+    setTitle("");
+    setDueAt("");
   }
 
   return (

@@ -3,9 +3,17 @@
 import { KeyRound, Loader2, Save, Trash2, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { PreferenceRecord, ProviderCapability, ProviderKind } from "@pme/shared";
-import { trpc } from "@/trpc/client";
+import {
+  useDeleteProviderMutation,
+  useInvalidateMemory,
+  usePreferences,
+  useProviders,
+  useUpdatePreferenceMutation,
+  useUpsertProviderMutation,
+} from "@/client/hooks";
 import { DemoResetButton } from "./demo-reset-button";
 import { EmptyState } from "./empty-state";
+import { VaultPanel } from "./vault-panel";
 
 const providerKinds: ProviderKind[] = ["openai", "openrouter", "groq", "cerebras", "custom_openai_compatible"];
 const capabilities: ProviderCapability[] = ["chat", "embedding", "vision", "transcription", "rerank"];
@@ -29,25 +37,12 @@ function valueAsString(value: unknown, fallback = "") {
 }
 
 export function SettingsPanel() {
-  const utils = trpc.useUtils();
-  const providers = trpc.provider.list.useQuery();
-  const preferences = trpc.preference.list.useQuery();
-  const upsert = trpc.provider.upsert.useMutation({
-    onSuccess: async () => {
-      setApiKey("");
-      await Promise.all([utils.provider.list.invalidate(), utils.dashboard.snapshot.invalidate(), utils.canvas.layout.invalidate()]);
-    },
-  });
-  const deleteProvider = trpc.provider.delete.useMutation({
-    onSuccess: async () => {
-      await Promise.all([utils.provider.list.invalidate(), utils.dashboard.snapshot.invalidate()]);
-    },
-  });
-  const updatePreference = trpc.preference.update.useMutation({
-    onSuccess: async () => {
-      await Promise.all([utils.preference.list.invalidate(), utils.canvas.layout.invalidate()]);
-    },
-  });
+  const invalidate = useInvalidateMemory();
+  const providers = useProviders();
+  const preferences = usePreferences();
+  const upsert = useUpsertProviderMutation();
+  const deleteProvider = useDeleteProviderMutation();
+  const updatePreference = useUpdatePreferenceMutation();
 
   const storedProfile = useMemo(
     () => ({
@@ -102,15 +97,18 @@ export function SettingsPanel() {
   async function saveProvider() {
     if (!label.trim() || !apiKey.trim() || selectedCapabilities.length === 0) return;
     await upsert.mutateAsync({ label, kind, baseUrl, apiKey, chatModel, embeddingModel, capabilities: selectedCapabilities, isDefault: providers.data?.length === 0 });
+    setApiKey("");
+    await invalidate();
   }
 
   async function removeProvider(providerId: string, providerLabel: string) {
     if (!window.confirm(`Remove ${providerLabel} and delete its stored API key?`)) return;
-    await deleteProvider.mutateAsync({ id: providerId });
+    await deleteProvider.mutateAsync(providerId);
   }
 
   return (
     <div className="settings-grid">
+      <VaultPanel />
       <section className="card pad-lg">
         <div className="section-head">
           <div className="block-title">

@@ -29,6 +29,8 @@ const SPACES: Record<string, SpaceSuggestion> = {
   files: { slug: "files", title: "Files", description: "Imported images and documents.", icon: "paperclip", accent: "note" },
 };
 
+export const AUTOMATIC_SPACE_SUGGESTIONS: SpaceSuggestion[] = Object.values(SPACES);
+
 const SECRET_PREFIXES = [
   "sk-",
   "sk_",

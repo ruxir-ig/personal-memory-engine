@@ -8,22 +8,18 @@ import {
   Code2,
   KeyRound,
   Library,
-  Loader2,
   Play,
-  Shuffle,
   Sparkles,
   Star,
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 import type { Artifact, CanvasBlock, CanvasBlockType, CanvasLayout, SpaceAccent, SummaryRecord } from "@pme/shared";
-import { trpc } from "@/trpc/client";
 import { kindMeta } from "@/lib/registry";
 import { relativeTime } from "@/lib/utils";
 import { ItemCard } from "@/components/cards/item-card";
 import { SecretCard } from "@/components/cards/secret-card";
-import { AskBlock } from "./ask-block";
 import { ReviewQueue, type ReviewEntry } from "./review-queue";
 import { SpaceCard } from "./space-card";
 
@@ -38,7 +34,6 @@ export type CanvasBundle = {
   credentials: Artifact[];
   today: TodayEntry[];
   review: ReviewEntry[];
-  totalItems: number;
 };
 
 const blockIcon: Record<CanvasBlockType, LucideIcon> = {
@@ -80,19 +75,19 @@ function BlockShell({ block, action, children }: { block: CanvasBlock; action?: 
 
 export function CanvasBoard({ bundle }: { bundle: CanvasBundle }) {
   const router = useRouter();
-  const utils = trpc.useUtils();
-  const regenerate = trpc.canvas.regenerate.useMutation({
-    onSuccess: async () => {
-      await utils.canvas.layout.invalidate();
-      router.refresh();
-    },
-  });
-
-  const { layout, itemsById, spaces, credentials, today, review, totalItems } = bundle;
+  const { layout, itemsById, spaces, credentials, today, review } = bundle;
   const spaceById = new Map(spaces.map((space) => [space.id, space]));
   const itemsFor = (ids: string[]) => ids.map((id) => itemsById[id]).filter((view): view is ItemView => Boolean(view));
 
   const [greetLead, greetName] = (layout.greetingTitle ?? "Your canvas").split(/,\s(.+)/);
+
+  useEffect(() => {
+    if (!layout.expiresAt) return;
+    const expiresAt = Date.parse(layout.expiresAt);
+    if (!Number.isFinite(expiresAt)) return;
+    const timeout = window.setTimeout(() => router.refresh(), Math.max(60_000, expiresAt - Date.now()));
+    return () => window.clearTimeout(timeout);
+  }, [layout.expiresAt, router]);
 
   function renderBlock(block: CanvasBlock): ReactNode {
     switch (block.type) {
@@ -138,7 +133,7 @@ export function CanvasBoard({ bundle }: { bundle: CanvasBundle }) {
             <div className="vault">
               {list.map((item) => {
                 const s = item.structured ?? {};
-                return <SecretCard key={item.id} label={str(s.secretLabel) ?? item.title} masked={str(s.secretMasked) ?? "\u2022\u2022\u2022\u2022\u2022\u2022"} value={str(s.secretValue)} service={str(s.service)} />;
+                return <SecretCard key={item.id} label={str(s.secretLabel) ?? item.title} masked={str(s.secretMasked) ?? "\u2022\u2022\u2022\u2022\u2022\u2022"} secretVaultId={str(s.secretVaultId)} service={str(s.service)} />;
               })}
             </div>
           </BlockShell>
@@ -171,11 +166,7 @@ export function CanvasBoard({ bundle }: { bundle: CanvasBundle }) {
         );
       }
       case "ask": {
-        return (
-          <section className={`block span-${block.span}`} key={block.id}>
-            <AskBlock suggestions={block.suggestions} />
-          </section>
-        );
+        return null;
       }
       case "spotlight": {
         const view = itemsFor(block.itemIds)[0];
@@ -252,12 +243,6 @@ export function CanvasBoard({ bundle }: { bundle: CanvasBundle }) {
             <Sparkles size={12} />
             {layout.generatedBy === "ai" ? "AI canvas" : "Smart canvas"}
           </span>
-          {totalItems > 0 ? (
-            <button className="btn secondary sm" type="button" onClick={() => regenerate.mutate({ clientNow: new Date().toISOString() })} disabled={regenerate.isPending}>
-              {regenerate.isPending ? <Loader2 size={15} className="spin" /> : <Shuffle size={15} />}
-              Rearrange
-            </button>
-          ) : null}
         </div>
       </div>
 

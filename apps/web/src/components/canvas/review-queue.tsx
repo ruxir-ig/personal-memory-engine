@@ -2,19 +2,13 @@
 
 import { Check, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { trpc } from "@/trpc/client";
+import { useConfirmIntentMutation } from "@/client/hooks";
 
 export type ReviewEntry = { id: string; title: string; detail: string };
 
 export function ReviewQueue({ entries }: { entries: ReviewEntry[] }) {
   const router = useRouter();
-  const utils = trpc.useUtils();
-  const confirm = trpc.memory.confirmIntent.useMutation({
-    onSuccess: async () => {
-      await Promise.all([utils.dashboard.snapshot.invalidate(), utils.canvas.layout.invalidate(), utils.inbox.list.invalidate(), utils.reminder.list.invalidate()]);
-      router.refresh();
-    },
-  });
+  const confirm = useConfirmIntentMutation();
 
   if (entries.length === 0) {
     return (
@@ -50,7 +44,10 @@ export function ReviewQueue({ entries }: { entries: ReviewEntry[] }) {
                 type="button"
                 aria-label="Accept"
                 disabled={pending}
-                onClick={() => confirm.mutate({ intentId: entry.id, accepted: true })}
+                onClick={async () => {
+                  await confirm.mutateAsync({ intentId: entry.id, accepted: true });
+                  router.refresh();
+                }}
               >
                 <Check size={15} />
               </button>
@@ -59,7 +56,10 @@ export function ReviewQueue({ entries }: { entries: ReviewEntry[] }) {
                 type="button"
                 aria-label="Dismiss"
                 disabled={pending}
-                onClick={() => confirm.mutate({ intentId: entry.id, accepted: false })}
+                onClick={async () => {
+                  await confirm.mutateAsync({ intentId: entry.id, accepted: false });
+                  router.refresh();
+                }}
               >
                 <X size={15} />
               </button>

@@ -1,25 +1,27 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowUpRight, Clock3 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeading } from "@/components/page-heading";
 import { formatDateTime, relativeTime } from "@/lib/utils";
-import { listTimeline } from "@/server/data/repository";
+import { useTimeline } from "@/client/hooks";
 
-export const dynamic = "force-dynamic";
-
-export default async function TimelinePage() {
-  const events = await listTimeline();
+export default function TimelinePage() {
+  const events = useTimeline();
 
   return (
     <>
       <PageHeading kicker="Timeline" title="Everything, in order" copy="A chronological trail of what Quipo extracted from your dumps - kept separate from when you captured it." />
-      {events.length === 0 ? (
+      {events.isLoading ? (
+        <div className="faint">Loading timeline…</div>
+      ) : !events.data?.length ? (
         <EmptyState title="No events yet" icon={<Clock3 size={20} />}>
           As you capture dated things - deadlines, plans, releases - they line up here.
         </EmptyState>
       ) : (
         <div className="timeline">
-          {events.map((event) => (
+          {events.data.map((event) => (
             <div className="tl-row" key={event.id}>
               <div className="tl-time">
                 {relativeTime(event.eventAt ?? event.capturedAt)}

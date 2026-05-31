@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Clock3, LayoutGrid, Library, Menu, MessageSquareText, Moon, Search, Settings, Sun, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { trpc } from "@/trpc/client";
+import { useSpaces } from "@/client/hooks";
 import { accentColor, spaceIcon } from "@/lib/registry";
 import { Composer } from "@/components/capture/composer";
 
@@ -43,7 +43,7 @@ function ThemeToggle() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
-  const spaces = trpc.space.list.useQuery(undefined, { staleTime: 30_000 });
+  const spaces = useSpaces();
 
   useEffect(() => {
     setNavOpen(false);

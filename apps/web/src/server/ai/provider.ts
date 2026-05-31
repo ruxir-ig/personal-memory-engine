@@ -125,7 +125,7 @@ function parseJsonContent(content: string) {
   return JSON.parse(fenced ?? trimmed) as unknown;
 }
 
-async function callChatJSON(args: {
+export async function callProviderChatJSON(args: {
   provider: OpenAICompatibleProvider;
   system: string;
   user: unknown;
@@ -167,7 +167,7 @@ export async function processMemoryWithProvider(args: {
   clientNow?: string;
   timezone?: string;
 }): Promise<AiMemoryPacket> {
-  const parsed = await callChatJSON({
+  const parsed = await callProviderChatJSON({
     provider: args.provider,
     temperature: 0.1,
     system:
@@ -201,6 +201,7 @@ export type CanvasState = {
   counts: { items: number; spaces: number; reminders: number; pendingReview: number };
   spaces: Array<{ id: string; slug: string; title: string; accent: string; count: number }>;
   recentItems: Array<{ id: string; kind: string; title: string; spaceTitle?: string }>;
+  preferences: Array<{ category: string; key: string; value: unknown }>;
   reelIds: string[];
   readingIds: string[];
   codeIds: string[];
@@ -212,11 +213,11 @@ export async function generateCanvasWithProvider(args: {
   provider: OpenAICompatibleProvider;
   state: CanvasState;
 }): Promise<CanvasLayout> {
-  const parsed = await callChatJSON({
+  const parsed = await callProviderChatJSON({
     provider: args.provider,
     temperature: 0.6,
     system:
-      "You design Quipo's home canvas: a calm, personalized 'second brain' dashboard arranged from a fixed catalog of blocks. Decide which blocks to show, their order, span, and a warm personalized title/subtitle for each, based on what the user has saved and the time of day. Surface what is most relevant right now (reminders due today, things to watch tonight, recent dumps, review queue). Only reference itemIds and spaceIds that exist in the provided state. Write a short personal greeting. Return ONLY valid JSON matching the schema.",
+      "You design Quipo's home canvas: a calm, personalized 'second brain' dashboard arranged from a fixed catalog of blocks. Decide which blocks to show, their order, span, and a warm personalized title/subtitle for each, based only on what the user has saved, confirmed preferences, and the time of day. Surface what is most relevant right now (reminders due today, things to watch tonight, recent dumps, review queue). Never invent demo/example content. Only reference itemIds and spaceIds that exist in the provided state. Do not return an ask block; asking and saving both happen in the global composer. For a spaces block, include every provided space id unless there are more than 12. Write a short personal greeting. Return ONLY valid JSON matching the schema.",
     user: {
       blockCatalog: {
         spotlight: "a featured item or a short digest message (use note + itemIds[0] optional)",
@@ -228,7 +229,6 @@ export async function generateCanvasWithProvider(args: {
         reading: "articles/links reading list (itemIds)",
         code_shelf: "saved code snippets (itemIds)",
         review: "pending items needing confirmation (no itemIds)",
-        ask: "a search/ask box with 2-3 suggested questions",
       },
       spanGuidance: "span is one of '2','3','4','6' (6 = full width). Total layout reads top to bottom.",
       schema: {
@@ -260,6 +260,8 @@ export type AnswerCandidate = {
   title: string;
   source?: string;
   text: string;
+  artifactKind?: string;
+  artifactType?: string;
 };
 
 export type GroundedAnswer = {
@@ -273,7 +275,7 @@ export async function answerMemoryWithProvider(args: {
   question: string;
   candidates: AnswerCandidate[];
 }): Promise<GroundedAnswer> {
-  const parsed = await callChatJSON({
+  const parsed = await callProviderChatJSON({
     provider: args.provider,
     temperature: 0.2,
     system:

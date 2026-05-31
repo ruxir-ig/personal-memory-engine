@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Artifact, Space, SummaryRecord } from "@pme/shared";
-import type { SpaceSuggestion } from "./classify";
+import { AUTOMATIC_SPACE_SUGGESTIONS, type SpaceSuggestion } from "./classify";
 import { type MemoryData, now, readData } from "./store";
 
 export type SpaceWithCount = Space & { itemCount: number };
+
+const SYSTEM_SPACE_TIMESTAMP = "1970-01-01T00:00:00.000Z";
 
 export function upsertSpaceInData(data: MemoryData, suggestion: SpaceSuggestion): Space {
   const existing = data.spaces.find((space) => space.slug === suggestion.slug);
@@ -30,18 +32,38 @@ function countItems(data: MemoryData, spaceId: string) {
   return data.artifacts.filter((artifact) => artifact.spaceId === spaceId && !artifact.archived).length;
 }
 
+function systemSpace(suggestion: SpaceSuggestion): Space {
+  return {
+    id: `system:${suggestion.slug}`,
+    slug: suggestion.slug,
+    title: suggestion.title,
+    description: suggestion.description,
+    icon: suggestion.icon,
+    accent: suggestion.accent,
+    createdBy: "system",
+    createdAt: SYSTEM_SPACE_TIMESTAMP,
+    updatedAt: SYSTEM_SPACE_TIMESTAMP,
+  };
+}
+
+function allSpaces(data: MemoryData): Space[] {
+  const realSlugs = new Set(data.spaces.map((space) => space.slug));
+  const automaticSpaces = AUTOMATIC_SPACE_SUGGESTIONS.filter((suggestion) => !realSlugs.has(suggestion.slug)).map(systemSpace);
+  return [...data.spaces, ...automaticSpaces];
+}
+
 export async function listSpaces(): Promise<SpaceWithCount[]> {
   const data = await readData();
-  return data.spaces
+  return allSpaces(data)
     .map((space) => ({ ...space, itemCount: countItems(data, space.id) }))
-    .sort((a, b) => b.itemCount - a.itemCount || a.title.localeCompare(b.title));
+    .sort((a, b) => Number(b.itemCount > 0) - Number(a.itemCount > 0) || b.itemCount - a.itemCount || a.title.localeCompare(b.title));
 }
 
 export async function getSpaceBySlug(
   slug: string,
 ): Promise<{ space: Space; items: Artifact[]; summaries: SummaryRecord[] } | null> {
   const data = await readData();
-  const space = data.spaces.find((candidate) => candidate.slug === slug);
+  const space = allSpaces(data).find((candidate) => candidate.slug === slug);
   if (!space) return null;
   const items = data.artifacts
     .filter((artifact) => artifact.spaceId === space.id && !artifact.archived)

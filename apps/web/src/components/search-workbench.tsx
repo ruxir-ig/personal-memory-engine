@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight, Loader2, Search } from "lucide-react";
 import { useState } from "react";
 import type { ArtifactType } from "@pme/shared";
-import { trpc } from "@/trpc/client";
+import { useSearch } from "@/client/hooks";
 import { EmptyState } from "./empty-state";
 
 const artifactTypes: ArtifactType[] = ["note", "text", "markdown", "image", "pdf", "document", "audio", "video", "chat", "link"];
@@ -12,7 +12,7 @@ const artifactTypes: ArtifactType[] = ["note", "text", "markdown", "image", "pdf
 export function SearchWorkbench() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ArtifactType[]>([]);
-  const search = trpc.search.query.useQuery({ query, artifactTypes: selected, limit: 20 });
+  const search = useSearch({ query, artifactTypes: selected, limit: 20 });
 
   function toggleType(type: ArtifactType) {
     setSelected((current) => (current.includes(type) ? current.filter((item) => item !== type) : [...current, type]));

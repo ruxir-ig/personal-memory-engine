@@ -35,16 +35,20 @@ to a hosted or self-hosted Canvas.
 
 Current prototype behavior:
 
-- Local JSON store under `data/` for fast development.
+- Local SQLite database at `data/quipu.sqlite` for user data.
+- Adaptive memory indexes for evolving captured data such as links, videos,
+  summaries, chat references, credentials, and future structured fields.
+- JSON snapshot mirror at `data/dev-store.json` for easy export/debugging.
 - Raw file vault under `data/artifacts/`.
 - OpenAI-compatible chat-completions adapter for memory extraction.
 - AI-controlled use of the limited available tools, including reminders,
-  events, and preference memory.
+  events, preference memory, clock, calendar, and optional headless browsing.
 - Cited retrieval over captured local chunks.
 
 Planned durable direction:
 
-- Drizzle/Postgres as the source of truth.
+- Hosted Drizzle/Postgres as the sync source of truth when the app needs a
+  server-side Canvas or multi-device use.
 - pgvector for semantic retrieval.
 - Worker-driven ingestion and enrichment.
 - Hosted or self-hosted Canvas split after the prototype.
@@ -75,6 +79,23 @@ pnpm install
 pnpm dev
 ```
 
+Quipo is a **100% client-side** static app. Memory, files, SQLite, agent tools, and FFmpeg all run in the browser. Deploy the `apps/web/out` folder to any static host (Cloudflare Pages, Netlify, GitHub Pages, S3, etc.).
+
+```text
+pnpm build
+# static export lands in apps/web/out
+```
+
+Configure optional build-time public env vars (embedded at build) or add providers in Settings (stored locally):
+
+```text
+NEXT_PUBLIC_PME_LLM_API_KEY="..."
+NEXT_PUBLIC_PME_LLM_BASE_URL="https://api.openai.com/v1"
+NEXT_PUBLIC_PME_LLM_MODEL="gpt-4o-mini"
+```
+
+For direct `/item/...` and `/spaces/...` links on static hosts, enable SPA fallback (included: `public/_redirects` for Netlify-style hosts).
+
 Optional durable store setup:
 
 ```text
@@ -82,6 +103,10 @@ pnpm docker:up
 pnpm db:migrate
 pnpm worker
 ```
+
+The app does not need Docker for normal local use. It creates the local SQLite
+database on first run and migrates an existing `data/dev-store.json` snapshot if
+one exists.
 
 Configure one chat provider in `.env` or through the local provider store:
 
@@ -98,6 +123,36 @@ OPENAI_API_KEY="..."
 OPENROUTER_API_KEY="..."
 GROQ_API_KEY="..."
 CEREBRAS_API_KEY="..."
+```
+
+### Agent tools (lazy discovery)
+
+When you ask a question, the agent sees a short tool catalog only (clock, calendar,
+browser). Full tool schemas load only if the model chooses to use a tool.
+
+- `clock` — user's local date/time and timezone (from the browser)
+- `calendar` — reminders and timeline events from saved memory
+- `browser` — headless Playwright page fetch with HTTP fallback; can open a saved link by `artifactId`
+- `ffmpeg` — local video inspection on uploaded vault files: probe metadata, extract frames, extract audio
+
+Install Chromium once for the browser tool:
+
+```text
+pnpm exec playwright install chromium
+```
+
+Install FFmpeg on the host for uploaded video/screen-recording context:
+
+```text
+# Arch/CachyOS example
+sudo pacman -S ffmpeg
+```
+
+Disable tools in `.env`:
+
+```text
+PME_BROWSER_ENABLED=false
+PME_FFMPEG_ENABLED=false
 ```
 
 ## Implemented vs Planned

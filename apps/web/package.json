@@ -12,6 +12,8 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@pme/shared": "workspace:*",
     "@tanstack/react-query": "latest",
     "@trpc/client": "latest",
@@ -21,12 +23,15 @@
     "date-fns": "latest",
     "drizzle-orm": "latest",
     "geist": "^1.7.1",
+    "idb": "^8.0.3",
     "lucide-react": "latest",
     "nanoid": "latest",
     "next": "latest",
+    "playwright": "latest",
     "postgres": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "sql.js": "^1.14.1",
     "superjson": "latest",
     "zod": "latest"
   },
@@ -35,6 +40,7 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/sql.js": "^1.4.11",
     "drizzle-kit": "latest",
     "tailwindcss": "latest",
     "typescript": "latest"
