@@ -20,7 +20,7 @@ export function ReminderBoard() {
     }
     const permission = await Notification.requestPermission();
     setNotificationMessage(`Notifications: ${permission}`);
-    if (permission === "granted") new Notification("Quipo", { body: "Reminder notifications are on." });
+    if (permission === "granted") new Notification("Quipu", { body: "Reminder notifications are on." });
   }
 
   async function submitReminder() {
@@ -76,15 +76,15 @@ export function ReminderBoard() {
                 <span className="when">{formatDateTime(reminder.dueAt).split(",")[0]}</span>
                 <div className="lrow-main">
                   <strong>{reminder.title}</strong>
-                  <span>{formatDateTime(reminder.dueAt)}</span>
+                  <span>{reminder.agentUiSummary ?? formatDateTime(reminder.dueAt)}</span>
                 </div>
-                <span className={reminder.status === "scheduled" ? "chip accent" : "chip"}>{reminder.status}</span>
+                <span className={reminder.status === "scheduled" && !reminder.notifiedAt ? "chip accent" : "chip"}>{reminder.notifiedAt ? "notified" : reminder.status}</span>
               </div>
             ))}
           </div>
         ) : (
           <EmptyState title="No reminders yet" icon={<Bell size={20} />}>
-            Schedule one here, or confirm a reminder Quipo detects from something you dump.
+            Schedule one here, or confirm a reminder Quipu detects from something you dump.
           </EmptyState>
         )}
       </section>

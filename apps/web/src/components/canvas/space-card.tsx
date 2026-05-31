@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { SpaceAccent } from "@pme/shared";
 import { accentColor, spaceIcon } from "@/lib/registry";
+import { spaceHref } from "@/lib/space-routes";
 
 export function SpaceCard({
   slug,
@@ -20,7 +21,7 @@ export function SpaceCard({
 }) {
   const Icon = spaceIcon(icon);
   return (
-    <Link className="space-tile" href={`/spaces/${slug}`} style={{ ["--k" as string]: accentColor(accent) } as CSSProperties}>
+    <Link className="space-tile" href={spaceHref(slug)} style={{ ["--k" as string]: accentColor(accent) } as CSSProperties}>
       <span className="ic">
         <Icon size={20} />
       </span>

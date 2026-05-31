@@ -7,6 +7,7 @@ import type {
   EdgeRecord,
   EntityRecord,
   IntentRecord,
+  AgentToolRecord,
   MemoryKind,
   ModelProviderRecord,
   PreferenceRecord,
@@ -15,6 +16,8 @@ import type {
   SummaryRecord,
   SyncStatus,
   TimelineEvent,
+  TodoItem,
+  TodoList,
 } from "@pme/shared";
 
 export type StoredProvider = ModelProviderRecord & {
@@ -50,6 +53,9 @@ export type MemoryData = {
   edges: EdgeRecord[];
   events: TimelineEvent[];
   reminders: Reminder[];
+  todoLists: TodoList[];
+  todos: TodoItem[];
+  agentTools: AgentToolRecord[];
   preferences: PreferenceRecord[];
   providers: StoredProvider[];
   ingestionRuns: IngestionRun[];
@@ -83,6 +89,9 @@ export function emptyData(): MemoryData {
     edges: [],
     events: [],
     reminders: [],
+    todoLists: [],
+    todos: [],
+    agentTools: [],
     preferences: [],
     providers: [],
     ingestionRuns: [],
@@ -126,6 +135,9 @@ function normalizeData(raw: Partial<MemoryData>): MemoryData {
     edges: raw.edges ?? [],
     events: raw.events ?? [],
     reminders: raw.reminders ?? [],
+    todoLists: raw.todoLists ?? [],
+    todos: raw.todos ?? [],
+    agentTools: raw.agentTools ?? [],
     preferences: raw.preferences ?? [],
     providers: raw.providers ?? [],
     ingestionRuns: raw.ingestionRuns ?? [],

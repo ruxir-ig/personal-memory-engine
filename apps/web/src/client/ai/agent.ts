@@ -11,6 +11,7 @@ import {
   buildToolInvocationUserPayload,
 } from "@/client/tools/prompts";
 import { toolIdSchema, type ToolContext, type ToolId, type ToolResult } from "@/client/tools/types";
+import { listEnabledAgentToolManifests } from "@/client/memory/agent-workspace";
 
 const agentPlanSchema = z.object({
   action: z.enum(["answer_from_memory", "use_tools"]),
@@ -55,6 +56,7 @@ export async function askMemoryWithAgent(args: {
   const timezone = args.timezone || "UTC";
   const context: ToolContext = { timezone, clientNow: args.clientNow };
   const redactedQuestion = redactSecretsForLlm(args.question);
+  const customTools = await listEnabledAgentToolManifests();
 
   const memoryPreview = args.candidates.map((candidate, index) => ({
     id: candidate.chunkId,
@@ -69,7 +71,7 @@ export async function askMemoryWithAgent(args: {
   const planRaw = await callProviderChatJSON({
     provider: args.provider,
     temperature: 0.1,
-    system: buildPlanningSystemPrompt(),
+    system: buildPlanningSystemPrompt(customTools),
     user: buildPlanningUserPayload({
       question: redactedQuestion.text,
       memoryPreview,
@@ -85,7 +87,7 @@ export async function askMemoryWithAgent(args: {
     const invocationRaw = await callProviderChatJSON({
       provider: args.provider,
       temperature: 0.1,
-      system: buildToolInvocationSystemPrompt(plan.selectedToolIds),
+      system: buildToolInvocationSystemPrompt(plan.selectedToolIds, customTools),
       user: buildToolInvocationUserPayload({
         question: redactedQuestion.text,
         selectedToolIds: plan.selectedToolIds,

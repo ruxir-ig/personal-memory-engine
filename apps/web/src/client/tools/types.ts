@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const toolIdSchema = z.enum(["clock", "calendar", "browser", "ffmpeg"]);
+export const toolIdSchema = z.enum(["clock", "calendar", "browser", "ffmpeg", "tasks", "toolkit"]);
 export type ToolId = z.infer<typeof toolIdSchema>;
 
 export type ToolManifestEntry = {
@@ -51,11 +51,41 @@ export const ffmpegArgsSchema = z.object({
   atSeconds: z.number().min(0).max(86_400).optional(),
 });
 
+export const taskToolActionSchema = z.enum(["list_lists", "create_list", "list_items", "add_item", "update_item"]);
+export const taskToolArgsSchema = z.object({
+  action: taskToolActionSchema,
+  listId: z.string().min(1).max(80).optional(),
+  listTitle: z.string().min(1).max(120).optional(),
+  itemId: z.string().min(1).max(80).optional(),
+  title: z.string().min(1).max(240).optional(),
+  notes: z.string().max(2000).optional(),
+  status: z.enum(["open", "done", "cancelled", "all"]).optional(),
+  priority: z.enum(["low", "normal", "high"]).default("normal"),
+  dueAt: z.string().datetime().optional(),
+  tags: z.array(z.string().min(1).max(40)).max(8).default([]),
+  includeArchivedLists: z.boolean().default(false),
+});
+
+export const toolkitToolActionSchema = z.enum(["list_tools", "create_tool", "update_tool", "disable_tool", "enable_tool", "run_tool"]);
+export const toolkitToolArgsSchema = z.object({
+  action: toolkitToolActionSchema,
+  toolId: z.string().min(1).max(80).optional(),
+  slug: z.string().min(1).max(80).optional(),
+  name: z.string().min(1).max(80).optional(),
+  summary: z.string().min(1).max(240).optional(),
+  whenToUse: z.string().min(1).max(500).optional(),
+  instructions: z.string().min(1).max(4000).optional(),
+  inputSchema: z.record(z.string(), z.unknown()).optional(),
+  input: z.record(z.string(), z.unknown()).default({}),
+});
+
 export type ClockArgs = z.infer<typeof clockArgsSchema>;
 export type CalendarArgs = z.infer<typeof calendarArgsSchema>;
 export type BrowserArgs = z.infer<typeof browserArgsSchema>;
 export type FfmpegArgs = z.infer<typeof ffmpegArgsSchema>;
 export type FfmpegOperation = z.infer<typeof ffmpegOperationSchema>;
+export type TaskToolArgs = z.infer<typeof taskToolArgsSchema>;
+export type ToolkitToolArgs = z.infer<typeof toolkitToolArgsSchema>;
 
 export type ToolDefinition = {
   id: ToolId;

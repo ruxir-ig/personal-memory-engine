@@ -12,7 +12,7 @@ export default function TimelinePage() {
 
   return (
     <>
-      <PageHeading kicker="Timeline" title="Everything, in order" copy="A chronological trail of what Quipo extracted from your dumps - kept separate from when you captured it." />
+      <PageHeading kicker="Timeline" title="Everything, in order" copy="A chronological trail of what Quipu extracted from your dumps - kept separate from when you captured it." />
       {events.isLoading ? (
         <div className="faint">Loading timeline…</div>
       ) : !events.data?.length ? (

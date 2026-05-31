@@ -3,6 +3,8 @@ import {
   calendarArgsSchema,
   clockArgsSchema,
   ffmpegArgsSchema,
+  taskToolArgsSchema,
+  toolkitToolArgsSchema,
   type ToolDefinition,
   type ToolId,
   type ToolManifestEntry,
@@ -32,6 +34,18 @@ export const TOOL_MANIFEST: ToolManifestEntry[] = [
     name: "FFmpeg media",
     summary: "Inspect uploaded videos/screen recordings locally: probe metadata, extract frames, or extract audio.",
     whenToUse: "When the user asks about an uploaded video, screen recording, or reel file and you need duration, frames, or audio context.",
+  },
+  {
+    id: "tasks",
+    name: "Tasks and lists",
+    summary: "Create, list, and update local todo lists and todo items.",
+    whenToUse: "When the user asks to make a todo/list, add tasks, show open work, or mark an item done/cancelled.",
+  },
+  {
+    id: "toolkit",
+    name: "Agent toolkit",
+    summary: "Create, list, enable/disable, and run safe custom prompt-tools owned by the agent.",
+    whenToUse: "When the user asks to give the agent a new reusable tool/workflow, inspect its tools, or use a previously saved custom tool.",
   },
 ];
 
@@ -101,10 +115,61 @@ const TOOL_DEFINITIONS: Record<ToolId, ToolDefinition> = {
       additionalProperties: false,
     },
   },
+  tasks: {
+    id: "tasks",
+    name: "Tasks and lists",
+    description: "Manages local todo lists and todo items in Quipu's browser database.",
+    whenToUse: TOOL_MANIFEST.find((entry) => entry.id === "tasks")!.whenToUse,
+    argsSchema: taskToolArgsSchema,
+    parameters: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: { type: "string", enum: ["list_lists", "create_list", "list_items", "add_item", "update_item"] },
+        listId: { type: "string", description: "Existing list id when known." },
+        listTitle: { type: "string", description: "Human list name, e.g. Inbox, Groceries, Launch tasks." },
+        itemId: { type: "string", description: "Existing todo item id for update_item." },
+        title: { type: "string", description: "Todo item title, or list title for create_list if listTitle is absent." },
+        notes: { type: "string", description: "Optional notes or list description." },
+        status: { type: "string", enum: ["open", "done", "cancelled", "all"] },
+        priority: { type: "string", enum: ["low", "normal", "high"], default: "normal" },
+        dueAt: { type: "string", format: "date-time", description: "Optional ISO datetime deadline." },
+        tags: { type: "array", items: { type: "string" }, maxItems: 8 },
+        includeArchivedLists: { type: "boolean", default: false },
+      },
+      additionalProperties: false,
+    },
+  },
+  toolkit: {
+    id: "toolkit",
+    name: "Agent toolkit",
+    description:
+      "Stores custom agent tools as safe prompt-level tool definitions. It does not execute arbitrary code; run_tool returns saved instructions and the invocation input for final-answer synthesis.",
+    whenToUse: TOOL_MANIFEST.find((entry) => entry.id === "toolkit")!.whenToUse,
+    argsSchema: toolkitToolArgsSchema,
+    parameters: {
+      type: "object",
+      required: ["action"],
+      properties: {
+        action: { type: "string", enum: ["list_tools", "create_tool", "update_tool", "disable_tool", "enable_tool", "run_tool"] },
+        toolId: { type: "string", description: "Existing agent tool id." },
+        slug: { type: "string", description: "Existing agent tool slug." },
+        name: { type: "string", description: "Short human name for create_tool/update_tool." },
+        summary: { type: "string", description: "One sentence capability summary." },
+        whenToUse: { type: "string", description: "Concrete trigger guidance for the agent." },
+        instructions: { type: "string", description: "Reusable prompt/tool procedure to follow when run." },
+        inputSchema: { type: "object", description: "JSON-schema-like input contract for the custom prompt-tool." },
+        input: { type: "object", description: "Invocation payload for run_tool." },
+      },
+      additionalProperties: false,
+    },
+  },
 };
 
-export function formatToolManifestForPrompt() {
-  return TOOL_MANIFEST.map((entry) => `- ${entry.id}: ${entry.summary} Use when: ${entry.whenToUse}`).join("\n");
+export function formatToolManifestForPrompt(customTools: Array<{ slug: string; name: string; summary: string; whenToUse: string }> = []) {
+  const builtIns = TOOL_MANIFEST.map((entry) => `- ${entry.id}: ${entry.summary} Use when: ${entry.whenToUse}`);
+  const custom = customTools.map((tool) => `- custom:${tool.slug} (${tool.name}): ${tool.summary} Use via toolkit.run_tool when: ${tool.whenToUse}`);
+  return [...builtIns, ...custom].join("\n");
 }
 
 export function getToolDefinition(id: ToolId): ToolDefinition {

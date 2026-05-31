@@ -20,7 +20,7 @@ The intended demo flow:
 4. Quipu sends the input to a configured OpenAI-compatible chat provider and
    asks for structured JSON.
 5. The saved memory appears on Canvas.
-6. The reminder is scheduled through the available reminder tool.
+6. The reminder is scheduled through the available reminder tool. When it becomes due, Quipu asks the in-app LLM to prepare the Canvas first, then surfaces the browser notification.
 7. Ask `What is Quipu?` from Canvas and get an answer with source citation.
 
 If no AI provider is configured, Quipu saves the capture as a raw draft and
@@ -43,6 +43,8 @@ Current prototype behavior:
 - OpenAI-compatible chat-completions adapter for memory extraction.
 - AI-controlled use of the limited available tools, including reminders,
   events, preference memory, clock, calendar, and optional headless browsing.
+- Due-reminder runtime that lets the configured LLM refresh the in-app Canvas
+  before the browser notification is shown.
 - Cited retrieval over captured local chunks.
 
 Planned durable direction:
@@ -79,7 +81,7 @@ pnpm install
 pnpm dev
 ```
 
-Quipo is a **100% client-side** static app. Memory, files, SQLite, agent tools, and FFmpeg all run in the browser. Deploy the `apps/web/out` folder to any static host (Cloudflare Pages, Netlify, GitHub Pages, S3, etc.).
+Quipu is a **100% client-side** static app. Memory, files, SQLite, agent tools, and FFmpeg all run in the browser. Deploy the `apps/web/out` folder to any static host (Cloudflare Pages, Netlify, GitHub Pages, S3, etc.).
 
 ```text
 pnpm build
@@ -127,13 +129,15 @@ CEREBRAS_API_KEY="..."
 
 ### Agent tools (lazy discovery)
 
-When you ask a question, the agent sees a short tool catalog only (clock, calendar,
-browser). Full tool schemas load only if the model chooses to use a tool.
+When you ask a question, the agent sees a short tool catalog only. Full tool
+schemas load only if the model chooses to use a tool.
 
 - `clock` — user's local date/time and timezone (from the browser)
 - `calendar` — reminders and timeline events from saved memory
 - `browser` — headless Playwright page fetch with HTTP fallback; can open a saved link by `artifactId`
 - `ffmpeg` — local video inspection on uploaded vault files: probe metadata, extract frames, extract audio
+- `tasks` — create/list/update local todo lists and todo items
+- `toolkit` — save and run safe custom prompt-tools for the agent itself; it stores reusable tool definitions locally and does not execute arbitrary code
 
 Install Chromium once for the browser tool:
 

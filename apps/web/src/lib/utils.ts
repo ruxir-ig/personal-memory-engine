@@ -38,7 +38,7 @@ export function relativeTime(value?: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(value));
 }
 
-/** Deterministic hue (0-360) from an arbitrary string - used for media cover gradients. */
+/** Deterministic hue (0-360) from an arbitrary string - used for media cover fills. */
 export function hueFromString(value: string) {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) hash = (hash * 31 + value.charCodeAt(i)) % 360;

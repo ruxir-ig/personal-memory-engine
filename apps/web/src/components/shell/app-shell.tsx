@@ -1,55 +1,137 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, Clock3, LayoutGrid, Library, Menu, MessageSquareText, Moon, Search, Settings, Sun, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import {
+  Bell,
+  ChevronDown,
+  Clock3,
+  LayoutGrid,
+  Library,
+  ListTodo,
+  Menu,
+  MessageSquareText,
+  Search,
+  Settings,
+  X,
+} from "lucide-react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
+import type { SpaceAccent } from "@pme/shared";
 import { useSpaces } from "@/client/hooks";
 import { accentColor, spaceIcon } from "@/lib/registry";
+import { spaceHref } from "@/lib/space-routes";
 import { Composer } from "@/components/capture/composer";
 
 const navItems = [
   { href: "/", label: "Canvas", icon: LayoutGrid },
-  { href: "/spaces", label: "Spaces", icon: Library },
   { href: "/search", label: "Search", icon: Search },
   { href: "/timeline", label: "Timeline", icon: Clock3 },
   { href: "/reminders", label: "Reminders", icon: Bell },
+  { href: "/lists", label: "Lists", icon: ListTodo },
   { href: "/chat", label: "Ask", icon: MessageSquareText },
 ];
 
-function ThemeToggle() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+function SpacesNav({
+  spaces,
+}: {
+  spaces: Array<{ id: string; slug: string; title: string; icon: string; accent: SpaceAccent; itemCount: number }>;
+}) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const querySlug = searchParams.get("slug");
+  const onSpaces = pathname === "/spaces" || pathname.startsWith("/spaces/");
+  const activeSlug = pathname.startsWith("/spaces/") ? pathname.split("/")[2] : querySlug;
+  const [open, setOpen] = useState(onSpaces);
+
   useEffect(() => {
-    const current = (document.documentElement.dataset.theme as "dark" | "light") || "dark";
-    setTheme(current);
-  }, []);
-  function toggle() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("quipo-theme", next);
-    } catch {
-      /* ignore */
-    }
-  }
+    if (onSpaces) setOpen(true);
+  }, [onSpaces]);
+
   return (
-    <button className="icon-btn bare" type="button" onClick={toggle} aria-label="Toggle theme" title="Toggle theme">
-      {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-    </button>
+    <div className="nav-group" data-open={open}>
+      <div className="nav-link-row">
+        <Link className="nav-link" data-active={onSpaces && pathname === "/spaces" && !querySlug} href="/spaces">
+          <Library size={17} aria-hidden="true" />
+          <span>Spaces</span>
+        </Link>
+        <button
+          type="button"
+          className="nav-chevron"
+          aria-label={open ? "Collapse spaces" : "Expand spaces"}
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+      </div>
+      {open ? (
+        <div className="nav-submenu">
+          {spaces.length === 0 ? (
+            <span className="nav-sub-link faint" style={{ pointerEvents: "none" }}>
+              No spaces yet
+            </span>
+          ) : (
+            spaces.map((space) => {
+              const Icon = spaceIcon(space.icon);
+              const active = activeSlug === space.slug;
+              return (
+                <Link
+                  key={space.id}
+                  className="nav-sub-link"
+                  data-active={active}
+                  href={spaceHref(space.slug)}
+                  style={{ ["--k" as string]: accentColor(space.accent) }}
+                >
+                  <Icon size={14} aria-hidden="true" />
+                  <span>{space.title}</span>
+                  <small className="tnum">{space.itemCount}</small>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SidebarNav() {
+  const pathname = usePathname();
+  const spaces = useSpaces();
+  const spaceList = spaces.data ?? [];
+
+  return (
+    <nav className="nav" aria-label="Primary">
+      <Link className="nav-link" data-active={pathname === "/"} href="/">
+        <LayoutGrid size={17} aria-hidden="true" />
+        <span>Canvas</span>
+      </Link>
+
+      <Suspense fallback={null}>
+        <SpacesNav spaces={spaceList} />
+      </Suspense>
+
+      {navItems.slice(1).map((item) => {
+        const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+        const Icon = item.icon;
+        return (
+          <Link key={item.href} className="nav-link" data-active={active} href={item.href}>
+            <Icon size={17} aria-hidden="true" />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
-  const spaces = useSpaces();
 
   useEffect(() => {
     setNavOpen(false);
   }, [pathname]);
-
-  const topSpaces = (spaces.data ?? []).slice(0, 7);
 
   return (
     <div className="app" data-nav={navOpen ? "open" : "closed"}>
@@ -60,57 +142,21 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Knot />
           </span>
           <span className="side-brand-text">
-            <strong>Quipo</strong>
+            <strong>Quipu</strong>
             <span>your second brain</span>
           </span>
         </Link>
 
-        <nav className="nav" aria-label="Primary">
-          {navItems.map((item) => {
-            const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} className="nav-link" data-active={active} href={item.href}>
-                <Icon size={17} aria-hidden="true" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="side-label">Spaces</div>
-        <div className="side-spaces">
-          {topSpaces.length === 0 ? (
-            <span className="side-space" style={{ pointerEvents: "none" }}>
-              <span className="dot" />
-              <span className="faint">No spaces yet</span>
-            </span>
-          ) : (
-            topSpaces.map((space) => {
-              const Icon = spaceIcon(space.icon);
-              return (
-                <Link key={space.id} className="side-space" href={`/spaces/${space.slug}`} style={{ ["--k" as string]: accentColor(space.accent) }}>
-                  <Icon size={14} />
-                  <span>{space.title}</span>
-                  <small>{space.itemCount}</small>
-                </Link>
-              );
-            })
-          )}
-        </div>
+        <Suspense fallback={null}>
+          <SidebarNav />
+        </Suspense>
 
         <div className="side-foot">
-          <div className="row between" style={{ padding: "0 4px" }}>
-            <ThemeToggle />
-            <span className="faint" style={{ fontSize: 11 }}>
-              local-first
-            </span>
-          </div>
           <Link className="profile" data-active={pathname.startsWith("/settings")} href="/settings">
             <span className="avatar">Q</span>
             <span className="grow">
               <strong>Settings</strong>
-              <small>Keys, profile, providers</small>
+              <small>Theme, profile, keys</small>
             </span>
             <Settings size={15} />
           </Link>
@@ -126,7 +172,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="side-brand-mark" style={{ width: 30, height: 30 }} aria-hidden="true">
               <Knot size={16} />
             </span>
-            <strong style={{ fontSize: 15, letterSpacing: "-0.03em" }}>Quipo</strong>
+            <strong style={{ fontSize: 15, letterSpacing: "-0.03em" }}>Quipu</strong>
           </Link>
         </div>
         <div className="main-inner">{children}</div>

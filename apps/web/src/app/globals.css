@@ -1,34 +1,36 @@
 @import "tailwindcss";
 
 /* =========================================================================
-   Quipo - personal memory engine
-   Design system: warm "ink & amber", dark-first with light mode.
-   One primary accent (amber/clay). Category hues used only for kind chips.
+   Quipu - personal memory engine
+   Design system: cool grey surfaces; warm off-white text; coral orange accent.
    ========================================================================= */
 
 :root {
   color-scheme: dark;
 
-  --bg: #100f0d;
-  --bg-grain: rgba(255, 255, 255, 0.015);
-  --surface: #191613;
-  --surface-2: #221e19;
-  --surface-3: #2a251f;
-  --inset: #0c0b09;
+  /* grey chrome — unchanged */
+  --bg: #1c1d21;
+  --bg-grain: rgba(255, 255, 255, 0.02);
+  --surface: #25262c;
+  --surface-2: #2e3038;
+  --surface-3: #383a44;
+  --inset: #18191d;
 
-  --border: #2c2823;
-  --border-strong: #3a342c;
-  --border-faint: #221f1b;
+  --border: #3a3c45;
+  --border-strong: #484a55;
+  --border-faint: #2e3038;
 
-  --text: #f4efe7;
-  --text-dim: #b6aca0;
-  --text-faint: #8b8278;
+  /* warm whites (reference: Claude) */
+  --text: #f0ede4;
+  --text-dim: #c8c4bc;
+  --text-faint: #94908a;
 
-  --accent: #e2a261;
-  --accent-2: #f2bd86;
-  --accent-soft: rgba(226, 162, 97, 0.14);
-  --accent-line: rgba(226, 162, 97, 0.34);
-  --accent-ink: #271703;
+  /* coral orange accent */
+  --accent: #d68a67;
+  --accent-2: #e09a78;
+  --accent-soft: rgba(214, 138, 103, 0.16);
+  --accent-line: rgba(214, 138, 103, 0.38);
+  --accent-ink: #1f1814;
 
   --k-link: #74a9e8;
   --k-reel: #e88aa6;
@@ -54,7 +56,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 18px 40px -24px rgba(0, 0, 0, 0.7);
   --shadow-lg: 0 8px 18px rgba(0, 0, 0, 0.4), 0 40px 80px -30px rgba(0, 0, 0, 0.75);
-  --shadow-accent: 0 14px 40px -16px rgba(226, 162, 97, 0.42);
+  --shadow-accent: 0 8px 20px -10px rgba(0, 0, 0, 0.45);
 
   --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-line);
 
@@ -62,33 +64,33 @@
   --maxw: 1200px;
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-nudica), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", "JetBrains Mono", monospace;
 }
 
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #f4f0e9;
-  --bg-grain: rgba(0, 0, 0, 0.012);
-  --surface: #fffdf8;
-  --surface-2: #f4efe6;
-  --surface-3: #ece5d8;
-  --inset: #efe9df;
+  --bg: #ececee;
+  --bg-grain: rgba(0, 0, 0, 0.02);
+  --surface: #f7f7f8;
+  --surface-2: #efeff1;
+  --surface-3: #e4e4e8;
+  --inset: #e8e8eb;
 
-  --border: #e3dccf;
-  --border-strong: #d3cabb;
-  --border-faint: #ebe5d9;
+  --border: #d4d4da;
+  --border-strong: #bcbcc4;
+  --border-faint: #e8e8ec;
 
-  --text: #221e18;
-  --text-dim: #6c6457;
-  --text-faint: #9a9082;
+  --text: #2a2824;
+  --text-dim: #5e5a54;
+  --text-faint: #8a8680;
 
-  --accent: #bd6f24;
-  --accent-2: #a85f17;
-  --accent-soft: rgba(189, 111, 36, 0.12);
-  --accent-line: rgba(189, 111, 36, 0.32);
-  --accent-ink: #fff6ea;
+  --accent: #d68a67;
+  --accent-2: #c97a58;
+  --accent-soft: rgba(214, 138, 103, 0.2);
+  --accent-line: rgba(214, 138, 103, 0.42);
+  --accent-ink: #1f1814;
 
   --k-link: #2f6fb8;
   --k-reel: #c45b7c;
@@ -107,7 +109,7 @@
   --shadow-sm: 0 1px 2px rgba(60, 50, 30, 0.08);
   --shadow: 0 2px 6px rgba(60, 50, 30, 0.07), 0 20px 44px -28px rgba(60, 50, 30, 0.32);
   --shadow-lg: 0 10px 24px rgba(60, 50, 30, 0.12), 0 44px 90px -36px rgba(60, 50, 30, 0.4);
-  --shadow-accent: 0 16px 40px -18px rgba(189, 111, 36, 0.4);
+  --shadow-accent: 0 6px 16px -8px rgba(60, 50, 40, 0.2);
 }
 
 * {
@@ -124,13 +126,10 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
-  background:
-    radial-gradient(1200px 540px at 78% -12%, var(--accent-soft), transparent 60%),
-    var(--bg);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "cv01";
-  letter-spacing: -0.01em;
+  letter-spacing: -0.012em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -237,12 +236,6 @@ p {
     transform: translateY(0);
   }
 }
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
-
 /* =========================================================================
    App shell
    ========================================================================= */
@@ -261,8 +254,7 @@ p {
   gap: 6px;
   padding: 18px 14px 16px;
   border-right: 1px solid var(--border);
-  background: color-mix(in oklab, var(--surface) 70%, var(--bg));
-  backdrop-filter: blur(14px);
+  background: var(--surface);
   overflow-y: auto;
   z-index: 30;
 }
@@ -280,8 +272,8 @@ p {
   height: 38px;
   border-radius: 11px;
   color: var(--accent-ink);
-  background: linear-gradient(150deg, var(--accent-2), var(--accent));
-  box-shadow: var(--shadow-accent);
+  background: var(--accent);
+  box-shadow: none;
   flex: none;
 }
 .side-brand-text strong {
@@ -340,6 +332,78 @@ p {
   font-size: 11px;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+}
+
+.nav-group {
+  display: grid;
+  gap: 2px;
+}
+.nav-link-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+.nav-link-row .nav-link {
+  flex: 1;
+  min-width: 0;
+}
+.nav-chevron {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  flex: none;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-faint);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), transform 0.15s var(--ease);
+}
+.nav-chevron:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nav-group[data-open="true"] .nav-chevron svg {
+  transform: rotate(180deg);
+}
+.nav-submenu {
+  display: grid;
+  gap: 1px;
+  padding: 2px 0 4px 10px;
+  margin-left: 11px;
+  border-left: 1px solid var(--border-faint);
+}
+.nav-sub-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  font-size: 13px;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.nav-sub-link svg {
+  flex: none;
+  opacity: 0.85;
+}
+.nav-sub-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-sub-link small {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+.nav-sub-link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nav-sub-link[data-active="true"] {
+  background: var(--accent-soft);
+  color: var(--text);
 }
 
 .side-label {
@@ -462,7 +526,7 @@ p {
   padding: 0 16px;
   border-radius: var(--r-sm);
   border: 1px solid transparent;
-  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  background: var(--accent);
   color: var(--accent-ink);
   font-size: 13.5px;
   font-weight: 580;
@@ -472,7 +536,8 @@ p {
   box-shadow: var(--shadow-sm);
 }
 .btn:hover {
-  box-shadow: var(--shadow-accent);
+  background: var(--accent-2);
+  box-shadow: var(--shadow-sm);
 }
 .btn:active {
   transform: translateY(1px);
@@ -805,9 +870,7 @@ p {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  background:
-    radial-gradient(680px 220px at 100% 0%, var(--accent-soft), transparent 70%),
-    var(--surface);
+  background: var(--surface);
   padding: 24px;
   box-shadow: var(--shadow);
   min-height: 188px;
@@ -898,7 +961,7 @@ p {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 35%, rgba(0, 0, 0, 0.4));
+  background: rgba(0, 0, 0, 0.22);
   z-index: 1;
 }
 .cover .play {
@@ -1050,6 +1113,20 @@ p {
   font-size: 12px;
   color: var(--text-faint);
 }
+.todo-row[data-status="done"] .lrow-main strong {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.tool-row .lrow-main span,
+.todo-row .lrow-main span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list-select {
+  max-width: 240px;
+}
 
 /* review queue */
 .review {
@@ -1091,7 +1168,7 @@ p {
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: var(--r);
-  background: linear-gradient(165deg, color-mix(in oklab, var(--k, var(--accent)) 9%, var(--surface)), var(--surface));
+  background: var(--surface);
   overflow: hidden;
   transition: transform 0.16s var(--ease), border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
 }
@@ -1128,9 +1205,7 @@ p {
    Ask block / chat
    ========================================================================= */
 .ask {
-  background:
-    radial-gradient(520px 200px at 0% 0%, var(--accent-soft), transparent 70%),
-    var(--surface);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: 20px;
@@ -1274,6 +1349,9 @@ p {
   flex-wrap: wrap;
 }
 .seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: none;
   background: transparent;
   color: var(--text-dim);
@@ -1314,7 +1392,7 @@ p {
 .score-bar .fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  background: var(--accent);
 }
 
 .timeline {
@@ -1370,11 +1448,79 @@ p {
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
-.settings-grid {
+.settings-stack {
   display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 20px;
-  align-items: start;
+  gap: 14px;
+  max-width: 640px;
+}
+.settings-card-title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.settings-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.settings-card-head .settings-card-title {
+  margin-bottom: 0;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 0 14px;
+  border-bottom: 1px solid var(--border-faint);
+}
+.settings-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.settings-row-copy strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 560;
+}
+.settings-row-copy p {
+  margin-top: 3px;
+  font-size: 12px;
+}
+.settings-inline-select {
+  width: auto;
+  min-width: 168px;
+  height: 38px;
+}
+.settings-fields {
+  display: grid;
+  gap: 12px;
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.settings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-faint);
+  font-size: 12px;
+}
+.settings-provider-form {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-faint);
+}
+.settings-provider-kind {
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 .provider-card {
   display: grid;
@@ -1452,19 +1598,18 @@ p {
   line-height: 1.5;
 }
 .skeleton {
-  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3) 50%, var(--surface-2) 100%);
-  background-size: 200% 100%;
+  background: var(--surface-2);
   border-radius: var(--r-sm);
-  position: relative;
-  overflow: hidden;
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
 }
-.skeleton::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, var(--bg-grain), transparent);
-  animation: shimmer 1.4s infinite;
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
 /* =========================================================================
@@ -1480,7 +1625,6 @@ p {
   justify-content: center;
   padding: 0 24px 22px;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, color-mix(in oklab, var(--bg) 88%, transparent) 60%);
   padding-top: 40px;
 }
 .composer {
@@ -1489,8 +1633,7 @@ p {
   max-width: 760px;
   border: 1px solid var(--border-strong);
   border-radius: var(--r-lg);
-  background: color-mix(in oklab, var(--surface) 92%, var(--bg));
-  backdrop-filter: blur(18px);
+  background: var(--surface);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   transition: border-color 0.18s var(--ease);
@@ -1608,6 +1751,16 @@ p {
   color: var(--text-faint);
   font-size: 12px;
 }
+.composer-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid color-mix(in oklab, var(--danger) 35%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 1.45;
+}
 .composer-cites {
   display: flex;
   flex-wrap: wrap;
@@ -1627,15 +1780,50 @@ p {
   gap: 8px;
   padding: 11px 12px;
 }
-.composer-mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(150deg, var(--accent-2), var(--accent));
-  color: var(--accent-ink);
+.composer-voice-soon {
+  position: relative;
   flex: none;
+  cursor: default;
+  outline: none;
+}
+.composer-voice-soon .icon-btn {
+  opacity: 0.42;
+  pointer-events: none;
+}
+.composer-voice-soon:hover .icon-btn,
+.composer-voice-soon:focus-visible .icon-btn {
+  background: transparent;
+  color: var(--text-dim);
+  border-color: transparent;
+  transform: none;
+}
+.composer-voice-soon::after {
+  content: "Coming soon";
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  padding: 5px 9px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+}
+.composer-voice-soon:hover::after,
+.composer-voice-soon:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+.composer-voice-soon:focus-visible {
+  border-radius: var(--r-sm);
+  box-shadow: var(--ring);
 }
 .composer-input {
   flex: 1;
@@ -1688,8 +1876,7 @@ p {
     z-index: 20;
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
-    background: color-mix(in oklab, var(--surface) 80%, var(--bg));
-    backdrop-filter: blur(12px);
+    background: var(--surface);
   }
   .main-inner {
     padding: 22px 18px 150px;
@@ -1701,7 +1888,6 @@ p {
   .board .block {
     grid-column: span 6 !important;
   }
-  .settings-grid,
   .detail-grid {
     grid-template-columns: 1fr;
   }

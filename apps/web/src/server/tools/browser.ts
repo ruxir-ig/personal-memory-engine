@@ -14,7 +14,7 @@ function stripHtml(html: string) {
 async function fetchPageText(url: string, maxChars: number) {
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "QuipoMemoryBot/0.1 (+local-first memory engine)",
+      "User-Agent": "QuipuMemoryBot/0.1 (+local-first memory engine)",
       Accept: "text/html,application/xhtml+xml;q=0.9,text/plain;q=0.8,*/*;q=0.5",
     },
     redirect: "follow",

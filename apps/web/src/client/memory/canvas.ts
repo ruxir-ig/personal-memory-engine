@@ -1,5 +1,5 @@
-import type { Artifact, CanvasBlock, CanvasLayout, PreferenceRecord } from "@pme/shared";
-import { generateCanvasWithProvider, type CanvasState } from "@/client/ai/provider";
+import type { Artifact, CanvasBlock, CanvasLayout, PreferenceRecord, Reminder } from "@pme/shared";
+import { generateCanvasWithProvider, type CanvasState, type DueReminderPreparation } from "@/client/ai/provider";
 import { randomUUID } from "./crypto";
 import { getDefaultAiProvider } from "./providers";
 import { type MemoryData, now, readData, writeData } from "./store";
@@ -186,7 +186,7 @@ export function buildRulesLayout(state: CanvasState): CanvasLayout {
     greetingTitle: `Good ${tod}, ${name}`,
     greetingSubtitle:
       state.counts.items === 0
-        ? "Your canvas is empty. Drop a link, a note, a key, or a file below and Quipo organizes it for you."
+        ? "Your canvas is empty. Drop a link, a note, a key, or a file below and Quipu organizes it for you."
         : `${state.counts.items} memories across ${state.counts.spaces} spaces${state.todayCount ? ` - ${state.todayCount} due today` : ""}.`,
     blocks,
   };
@@ -226,6 +226,37 @@ async function produceLayout(data: MemoryData, clientNow?: string, state = build
     }
   }
   return finalizeLayout(buildRulesLayout(state), state, clientNow);
+}
+
+export async function prepareCanvasForDueReminder(args: {
+  data: MemoryData;
+  reminder: Reminder;
+  clientNow?: string;
+  preparation?: DueReminderPreparation;
+}): Promise<CanvasLayout> {
+  const state = buildCanvasState(args.data, args.clientNow);
+  const base = await produceLayout(args.data, args.clientNow, state);
+  const dueBlock = block({
+    id: `due-${args.reminder.id.slice(0, 8)}`,
+    type: "today",
+    title: args.preparation?.canvasBlockTitle ?? "Due now",
+    subtitle: args.preparation?.canvasBlockSubtitle ?? "Reminder ready",
+    note: args.preparation?.canvasNote,
+    span: "6",
+    suggestions: args.preparation?.suggestions ?? [],
+  });
+  const blocks = [dueBlock, ...base.blocks.filter((item) => item.id !== dueBlock.id && item.type !== "today")].slice(0, 14);
+  return finalizeLayout(
+    {
+      ...base,
+      generatedAt: now(),
+      greetingTitle: args.preparation?.canvasGreetingTitle ?? base.greetingTitle,
+      greetingSubtitle: args.preparation?.canvasGreetingSubtitle ?? base.greetingSubtitle,
+      blocks,
+    },
+    state,
+    args.clientNow,
+  );
 }
 
 export async function getCanvasLayout(clientNow?: string): Promise<CanvasLayout> {

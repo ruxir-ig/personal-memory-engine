@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { callProviderChatJSON, type AnswerCandidate, type OpenAICompatibleProvider } from "./provider";
 import { executeTool } from "@/server/tools/executor";
+import { listEnabledAgentToolManifests } from "@/server/data/agent-workspace";
 import {
   buildFinalAnswerSystemPrompt,
   buildFinalAnswerUserPayload,
@@ -53,6 +54,7 @@ export async function askMemoryWithAgent(args: {
 }): Promise<AgentAnswer> {
   const timezone = args.timezone || "UTC";
   const context: ToolContext = { timezone, clientNow: args.clientNow };
+  const customTools = await listEnabledAgentToolManifests();
 
   const memoryPreview = args.candidates.map((candidate, index) => ({
     id: candidate.chunkId,
@@ -67,7 +69,7 @@ export async function askMemoryWithAgent(args: {
   const planRaw = await callProviderChatJSON({
     provider: args.provider,
     temperature: 0.1,
-    system: buildPlanningSystemPrompt(),
+    system: buildPlanningSystemPrompt(customTools),
     user: buildPlanningUserPayload({
       question: args.question,
       memoryPreview,
@@ -82,7 +84,7 @@ export async function askMemoryWithAgent(args: {
     const invocationRaw = await callProviderChatJSON({
       provider: args.provider,
       temperature: 0.1,
-      system: buildToolInvocationSystemPrompt(plan.selectedToolIds),
+      system: buildToolInvocationSystemPrompt(plan.selectedToolIds, customTools),
       user: buildToolInvocationUserPayload({
         question: args.question,
         selectedToolIds: plan.selectedToolIds,

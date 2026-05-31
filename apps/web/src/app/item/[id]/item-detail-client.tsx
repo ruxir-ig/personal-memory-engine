@@ -10,6 +10,7 @@ import { PageHeading } from "@/components/page-heading";
 import { SecretCard } from "@/components/cards/secret-card";
 import { kindAccentColor, kindMeta } from "@/lib/registry";
 import { formatDateTime } from "@/lib/utils";
+import { spaceHref } from "@/lib/space-routes";
 import { useArtifactById } from "@/client/hooks";
 import { getVaultBlobByKey, blobUrl } from "@/client/memory/vault";
 
@@ -133,7 +134,7 @@ export function ItemDetailClient() {
                 {meta.label}
               </span>
               {space ? (
-                <Link className="chip" href={`/spaces/${space.slug}`}>
+                <Link className="chip" href={spaceHref(space.slug)}>
                   {space.title}
                 </Link>
               ) : null}

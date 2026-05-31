@@ -238,12 +238,6 @@ export function CanvasBoard({ bundle }: { bundle: CanvasBundle }) {
           </h1>
           {layout.greetingSubtitle ? <p>{layout.greetingSubtitle}</p> : null}
         </div>
-        <div className="head-actions">
-          <span className="chip" title={layout.model ? `Model: ${layout.model}` : undefined}>
-            <Sparkles size={12} />
-            {layout.generatedBy === "ai" ? "AI canvas" : "Smart canvas"}
-          </span>
-        </div>
       </div>
 
       <div className="board">{layout.blocks.map((block) => renderBlock(block))}</div>

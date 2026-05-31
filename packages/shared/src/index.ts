@@ -72,6 +72,9 @@ export const reminderStatusSchema = z.enum([
   "failed",
 ]);
 
+export const todoStatusSchema = z.enum(["open", "done", "cancelled"]);
+export const todoPrioritySchema = z.enum(["low", "normal", "high"]);
+
 export const syncStatusSchema = z.enum([
   "local_processed",
   "pending_review",
@@ -149,6 +152,8 @@ export type SpaceAccent = z.infer<typeof spaceAccentSchema>;
 export type IntentType = z.infer<typeof intentTypeSchema>;
 export type PreferenceCategory = z.infer<typeof preferenceCategorySchema>;
 export type ReminderStatus = z.infer<typeof reminderStatusSchema>;
+export type TodoStatus = z.infer<typeof todoStatusSchema>;
+export type TodoPriority = z.infer<typeof todoPrioritySchema>;
 export type SyncStatus = z.infer<typeof syncStatusSchema>;
 export type ProviderKind = z.infer<typeof providerKindSchema>;
 export type ProviderCapability = z.infer<typeof providerCapabilitySchema>;
@@ -295,8 +300,51 @@ export type Reminder = {
   artifactId?: string;
   createdAt: string;
   confirmedAt?: string;
+  notifiedAt?: string;
+  agentProcessedAt?: string;
+  agentNotificationTitle?: string;
+  agentNotificationBody?: string;
+  agentUiSummary?: string;
+  agentError?: string;
   recurrence?: string;
   place?: string;
+};
+
+export type TodoList = {
+  id: string;
+  title: string;
+  description?: string;
+  color?: string;
+  archived?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TodoItem = {
+  id: string;
+  listId: string;
+  title: string;
+  notes?: string;
+  status: TodoStatus;
+  priority: TodoPriority;
+  dueAt?: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+};
+
+export type AgentToolRecord = {
+  id: string;
+  slug: string;
+  name: string;
+  summary: string;
+  whenToUse: string;
+  instructions: string;
+  inputSchema: Record<string, unknown>;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type PreferenceRecord = {
@@ -360,6 +408,9 @@ export type DashboardSnapshot = {
   summaries: SummaryRecord[];
   intents: IntentRecord[];
   reminders: Reminder[];
+  todoLists: TodoList[];
+  todos: TodoItem[];
+  agentTools: AgentToolRecord[];
   events: TimelineEvent[];
   providers: ModelProviderRecord[];
   preferences: PreferenceRecord[];
@@ -369,6 +420,8 @@ export type DashboardSnapshot = {
     spaces: number;
     inbox: number;
     reminders: number;
+    todos: number;
+    agentTools: number;
     providers: number;
     localProcessed: number;
     pendingReview: number;

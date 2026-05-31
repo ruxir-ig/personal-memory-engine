@@ -35,21 +35,21 @@ export function ItemCard({ item, summary }: { item: Artifact; summary?: SummaryR
 
   if (MEDIA.has(item.kind)) {
     const hue = hueFromString(url ?? item.title);
-    const gradient: CSSProperties = {
-      background: `linear-gradient(150deg, hsl(${hue} 52% 44%), hsl(${(hue + 48) % 360} 58% 26%))`,
+    const coverStyle: CSSProperties = {
+      background: `hsl(${hue} 22% 32%)`,
     };
     const title = str(s.mediaTitle) ?? item.title;
     return (
       <div className="item-card">
         {ext ? (
-          <a className="cover" style={gradient} href={url} target="_blank" rel="noreferrer">
+          <a className="cover" style={coverStyle} href={url} target="_blank" rel="noreferrer">
             {str(s.platform) ? <span className="plat">{str(s.platform)}</span> : null}
             <span className="play">
               <Play size={18} fill="currentColor" />
             </span>
           </a>
         ) : (
-          <Link className="cover" style={gradient} href={href}>
+          <Link className="cover" style={coverStyle} href={href}>
             <span className="play">
               <Play size={18} fill="currentColor" />
             </span>

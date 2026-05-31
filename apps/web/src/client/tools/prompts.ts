@@ -2,15 +2,15 @@ import { formatToolManifestForPrompt, formatToolSchemasForPrompt } from "./regis
 import type { LlmRedactionContext } from "@/client/vault/sanitize-for-llm";
 import type { ToolId } from "./types";
 
-export const AGENT_BASE_SYSTEM = `You are Quipo's memory assistant. Quipo is a quiet personal second brain.
+export const AGENT_BASE_SYSTEM = `You are Quipu's memory assistant. Quipu is a quiet personal second brain.
 Prefer grounded answers from the user's saved memory. Never invent facts.
 When memory is insufficient, you may request optional tools by id — tool details are loaded only after you choose them.`;
 
-export function buildPlanningSystemPrompt() {
+export function buildPlanningSystemPrompt(customTools: Array<{ slug: string; name: string; summary: string; whenToUse: string }> = []) {
   return `${AGENT_BASE_SYSTEM}
 
 Available tools (catalog only — parameters are not loaded until you select a tool):
-${formatToolManifestForPrompt()}
+${formatToolManifestForPrompt(customTools)}
 
 Rules:
 - Request tools only when they materially help answer the question.
@@ -19,6 +19,8 @@ Rules:
 - Request calendar for schedule, reminders, deadlines, or what's coming up.
 - Request browser for saved links, live web pages, URLs, or external content missing from memory.
 - Request ffmpeg when the user asks about an uploaded video/screen recording and you need metadata, frames, or audio.
+- Request tasks when the user asks to create, list, or update todos/lists.
+- Request toolkit when the user asks to create/inspect/disable agent tools or use a custom: tool from the catalog.
 - You may select multiple tools if needed, up to 3.
 - If saved memory already contains a strong answer, answer without tools.`;
 }
@@ -39,21 +41,25 @@ export function buildPlanningUserPayload(args: {
     retrievedMemories: args.memoryPreview,
     responseSchema: {
       action: "answer_from_memory | use_tools",
-      selectedToolIds: ["zero or more of: clock, calendar, browser, ffmpeg"],
+      selectedToolIds: ["zero or more of: clock, calendar, browser, ffmpeg, tasks, toolkit"],
       reasoning: "one short sentence on why",
     },
   };
 }
 
-export function buildToolInvocationSystemPrompt(selectedToolIds: ToolId[]) {
+export function buildToolInvocationSystemPrompt(selectedToolIds: ToolId[], customTools: Array<{ slug: string; name: string; summary: string; whenToUse: string; inputSchema: Record<string, unknown> }> = []) {
   const schemas = formatToolSchemasForPrompt(selectedToolIds);
   return `${AGENT_BASE_SYSTEM}
 
 You selected tools. Provide concrete arguments for each tool using ONLY the schemas below.
+For custom:${customTools.map((tool) => tool.slug).join(", ") || "none"}, call toolkit with action "run_tool" and the custom tool slug.
 Return valid JSON only.
 
 Tool schemas:
-${JSON.stringify(schemas, null, 2)}`;
+${JSON.stringify(schemas, null, 2)}
+
+Custom prompt-tools:
+${JSON.stringify(customTools, null, 2)}`;
 }
 
 export function buildToolInvocationUserPayload(args: { question: string; selectedToolIds: ToolId[]; timezone: string; clientNow?: string }) {
@@ -64,7 +70,7 @@ export function buildToolInvocationUserPayload(args: { question: string; selecte
     userTimezone: args.timezone,
     clientNow: args.clientNow,
     responseSchema: {
-      tools: [{ toolId: "clock|calendar|browser|ffmpeg", arguments: {} }],
+      tools: [{ toolId: "clock|calendar|browser|ffmpeg|tasks|toolkit", arguments: {} }],
     },
   };
 }
@@ -77,6 +83,7 @@ Use saved memory as the primary source of truth. Tool output supplements memory 
 If tool output contradicts memory about the user's own life, prefer memory.
 If browser or ffmpeg output provides external or media facts, cite them plainly without pretending they were saved before.
 For ffmpeg frame extraction, describe what was extracted and note limits if you cannot literally see the frames yet.
+For toolkit run_tool output, follow the saved customTool.instructions using the provided input; mention that it is a saved local prompt-tool, not executed code.
 Keep the answer concise (1-5 sentences) and conversational.
 Return ONLY valid JSON matching the schema.`;
 }

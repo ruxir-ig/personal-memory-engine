@@ -1,18 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { ArrowUpRight, ChevronDown, FileText, Loader2, Mic, Paperclip, Send, Sparkles, X } from "lucide-react";
-import type { MemoryKind } from "@pme/shared";
+import { ArrowUpRight, FileText, Loader2, Mic, Paperclip, Send, X } from "lucide-react";
 import {
   useAskMutation,
   useCaptureMutation,
   useImportFileMutation,
   useInvalidateMemory,
-  useProviders,
 } from "@/client/hooks";
-import { kindMeta } from "@/lib/registry";
 
 type AttachmentDraft = { id: string; file: File; previewUrl?: string };
 
@@ -36,23 +33,6 @@ function createAttachment(file: File): AttachmentDraft {
   };
 }
 
-/** Lightweight client-side guess for the live hint chip (server does the real work). */
-function guessKind(text: string): MemoryKind | null {
-  const t = text.trim();
-  if (!t) return null;
-  if (/(?:key|token|secret|api[\s_-]?key|password)\s*[:=]/i.test(t) || /\b(sk-|ghp_|hf_|fe_oa_|AKIA|AIza)/.test(t)) return "credential";
-  const url = t.match(/https?:\/\/\S+/i)?.[0]?.toLowerCase();
-  if (url) {
-    if (url.includes("instagram.com/reel") || url.includes("/shorts/") || url.includes("tiktok.com")) return "reel";
-    if (url.includes("youtube.com") || url.includes("youtu.be") || url.includes("vimeo")) return "video";
-    if (url.includes("substack.com") || url.includes("medium.com")) return "article";
-    return "link";
-  }
-  if (/```/.test(t) || /^\s*(const|function|def|class|import|export)\b/m.test(t)) return "code";
-  if (/\b(remind|deadline|due|todo|to-do|tomorrow|follow up)\b/i.test(t)) return "task";
-  return "note";
-}
-
 function isQuestionLike(text: string) {
   const t = text.trim();
   if (!t) return false;
@@ -68,17 +48,13 @@ function isSaveLike(text: string) {
 export function Composer() {
   const router = useRouter();
   const [text, setText] = useState("");
-  const [sourceLabel, setSourceLabel] = useState("");
   const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
-  const [statusMessage, setStatusMessage] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const attachmentsRef = useRef<AttachmentDraft[]>([]);
   const invalidateMemory = useInvalidateMemory();
-  const providers = useProviders();
   const capture = useCaptureMutation();
   const ask = useAskMutation();
   const importFile = useImportFileMutation();
@@ -110,8 +86,6 @@ export function Composer() {
   function addFiles(files: File[]) {
     if (files.length === 0) return;
     setAttachments((current) => [...current, ...files.map(createAttachment)]);
-    setStatusMessage(`${files.length} file${files.length === 1 ? "" : "s"} attached`);
-    setIsExpanded(true);
   }
 
   function removeAttachment(id: string) {
@@ -135,23 +109,20 @@ export function Composer() {
     setIsSubmitting(true);
     try {
       if (shouldAsk && !shouldSaveAndAsk) {
-        setStatusMessage("Searching memory...");
         await ask.mutateAsync({
           question: prompt,
           clientNow: new Date().toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         });
-        setIsExpanded(true);
         setText("");
         return;
       }
 
       ask.reset();
-      setStatusMessage(prompt ? "Organizing..." : "Importing files...");
       if (prompt) {
         await capture.mutateAsync({
           text: prompt,
-          sourceLabel: sourceLabel.trim() || "quick capture",
+          sourceLabel: "quick capture",
           shouldSummarize: true,
           clientNow: new Date().toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -159,34 +130,26 @@ export function Composer() {
       }
       if (shouldSaveAndAsk) {
         await invalidateMemoryViews();
-        setStatusMessage("Saved. Searching memory...");
         await ask.mutateAsync({
           question: prompt,
           clientNow: new Date().toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         });
         setText("");
-        setSourceLabel("");
-        setIsExpanded(true);
         return;
       }
       if (attachments.length > 0) {
-        setStatusMessage(`Importing ${attachments.length} file${attachments.length === 1 ? "" : "s"}...`);
         await Promise.all(attachments.map((attachment) => uploadFile(attachment.file)));
       }
       for (const attachment of attachments) {
         if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
       }
       setText("");
-      setSourceLabel("");
       setAttachments([]);
-      setIsExpanded(false);
-      setStatusMessage("Filed away");
       await invalidateMemoryViews();
       if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Something went wrong");
-      setIsExpanded(true);
+    } catch {
+      /* errors surface via capture.error / ask.error */
     } finally {
       setIsSubmitting(false);
     }
@@ -217,61 +180,14 @@ export function Composer() {
 
   const isWorking = capture.isPending || ask.isPending || isSubmitting;
   const isAskMode = Boolean(text.trim()) && attachments.length === 0 && isQuestionLike(text) && !isSaveLike(text);
-  const isSaveAndAskMode = Boolean(text.trim()) && attachments.length === 0 && isQuestionLike(text) && isSaveLike(text);
   const canSubmit = Boolean(text.trim() || attachments.length > 0) && !isWorking;
-  const guessed = useMemo(() => guessKind(text), [text]);
-  const hasProvider = providers.data?.some((provider) => provider.capabilities.includes("chat"));
-  const showDetails = isExpanded || attachments.length > 0 || Boolean(statusMessage) || Boolean(capture.error);
+  const showExtras = attachments.length > 0 || Boolean(ask.data) || Boolean(capture.error) || Boolean(ask.error);
 
   return (
     <div className="composer-wrap">
       <section className="composer" data-dragging={isDragging} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
-        {showDetails ? (
+        {showExtras ? (
           <div className="composer-details">
-            <div className="signal-row">
-              {guessed ? (
-                <span className="signal" data-active="true">
-                  {(() => {
-                    const Icon = kindMeta[guessed].icon;
-                    return <Icon size={13} />;
-                  })()}
-                  <strong>{kindMeta[guessed].label}</strong>
-                  <span>auto-filed</span>
-                </span>
-              ) : (
-                <span className="signal">
-                  <Sparkles size={13} />
-                  <strong>Anything</strong>
-                  <span>link, note, key, code, file</span>
-                </span>
-              )}
-              <span className="signal" data-active={attachments.length > 0}>
-                <Paperclip size={13} />
-                <strong>{attachments.length || "0"}</strong>
-                <span>files</span>
-              </span>
-              <span className="signal" data-active={Boolean(hasProvider)}>
-                <Sparkles size={13} />
-                <strong>{hasProvider ? "AI on" : "AI off"}</strong>
-                <span>{hasProvider ? "enriching" : "rules only"}</span>
-              </span>
-              <span className="signal" data-active={isAskMode || isSaveAndAskMode}>
-                {isAskMode ? <ArrowUpRight size={13} /> : <Send size={13} />}
-                <strong>{isSaveAndAskMode ? "Save + ask" : isAskMode ? "Ask" : "Save"}</strong>
-                <span>{isAskMode ? "from memory" : "to memory"}</span>
-              </span>
-              {statusMessage ? (
-                <span className="signal" data-active>
-                  <span>{statusMessage}</span>
-                </span>
-              ) : null}
-              {capture.error ? (
-                <span className="signal" style={{ color: "var(--danger)" }}>
-                  <span>{capture.error.message}</span>
-                </span>
-              ) : null}
-            </div>
-
             {attachments.length > 0 ? (
               <div className="attach-strip" aria-label="Attached files">
                 {attachments.map((attachment) => (
@@ -295,9 +211,16 @@ export function Composer() {
               </div>
             ) : null}
 
-            <div className="composer-meta">
-              <input className="input" value={sourceLabel} onChange={(event) => setSourceLabel(event.target.value)} placeholder="Source label (optional)" aria-label="Source label" />
-            </div>
+            {capture.error ? (
+              <p className="composer-error" role="alert">
+                {capture.error.message}
+              </p>
+            ) : null}
+            {ask.error ? (
+              <p className="composer-error" role="alert">
+                {ask.error.message}
+              </p>
+            ) : null}
 
             {ask.data ? (
               <div className="composer-answer">
@@ -327,9 +250,6 @@ export function Composer() {
         ) : null}
 
         <div className="composer-row">
-          <span className="composer-mark" aria-hidden="true">
-            <Sparkles size={17} />
-          </span>
           <input
             ref={fileInputRef}
             type="file"
@@ -353,15 +273,14 @@ export function Composer() {
             placeholder="Ask, save, or drop anything..."
             rows={1}
           />
-          <button className="icon-btn bare" type="button" aria-label={showDetails ? "Collapse" : "Expand"} onClick={() => setIsExpanded((current) => !current)}>
-            <ChevronDown size={18} style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
-          </button>
           <button className="btn" type="button" aria-label={isAskMode ? "Ask" : "Save"} onClick={submitCapture} disabled={!canSubmit}>
             {isWorking ? <Loader2 size={17} className="spin" /> : isAskMode ? <ArrowUpRight size={17} /> : <Send size={17} />}
           </button>
-          <button className="icon-btn bare" type="button" aria-label="Voice input" disabled title="Voice input">
-            <Mic size={16} />
-          </button>
+          <span className="composer-voice-soon" tabIndex={0} role="status" aria-label="Voice input — coming soon">
+            <span className="icon-btn bare" aria-hidden="true">
+              <Mic size={16} />
+            </span>
+          </span>
         </div>
       </section>
     </div>

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { canvasLayoutSchema, memoryKindSchema, type CanvasLayout, type ProviderCapability, type ProviderKind } from "@pme/shared";
+import { canvasLayoutSchema, memoryKindSchema, type CanvasLayout, type ProviderCapability, type ProviderKind, type Reminder } from "@pme/shared";
 import { llmContextForRedactions, redactSecretsForLlm } from "@/client/vault/sanitize-for-llm";
 
 export type OpenAICompatibleProvider = {
@@ -67,6 +67,19 @@ export const aiMemoryPacketSchema = z.object({
 });
 
 export type AiMemoryPacket = z.infer<typeof aiMemoryPacketSchema>;
+
+export const dueReminderPreparationSchema = z.object({
+  notificationTitle: z.string().min(1).max(80).default("Quipu reminder"),
+  notificationBody: z.string().min(1).max(220),
+  canvasGreetingTitle: z.string().min(1).max(120).optional(),
+  canvasGreetingSubtitle: z.string().min(1).max(220).optional(),
+  canvasBlockTitle: z.string().min(1).max(80).optional(),
+  canvasBlockSubtitle: z.string().max(160).optional(),
+  canvasNote: z.string().max(280).optional(),
+  suggestions: z.array(z.string().max(120)).max(5).default([]),
+});
+
+export type DueReminderPreparation = z.infer<typeof dueReminderPreparationSchema>;
 
 type ChatCompletionResponse = {
   choices?: Array<{ message?: { content?: string | null } }>;
@@ -174,7 +187,7 @@ export async function processMemoryWithProvider(args: {
     provider: args.provider,
     temperature: 0.1,
     system:
-      "You are Quipo's memory router. Quipo is a personal second brain where the user dumps links, reels, notes, code, and tasks. Return only valid JSON. Classify the input and extract structure grounded only in the input; never invent facts. Pick a short, human topic name for `space` (e.g. 'Watch later', 'Reading list', 'Career', 'Recipes'). Reminders and preferences must require user confirmation. If encryptedCredentialsDetected is present, the user included secrets that were encrypted locally and redacted — never ask for or infer the plaintext.",
+      "You are Quipu's memory router. Quipu is a personal second brain where the user dumps links, reels, notes, code, and tasks. Return only valid JSON. Classify the input and extract structure grounded only in the input; never invent facts. Pick a short, human topic name for `space` (e.g. 'Watch later', 'Reading list', 'Career', 'Recipes'). Reminders and preferences must require user confirmation. If encryptedCredentialsDetected is present, the user included secrets that were encrypted locally and redacted — never ask for or infer the plaintext.",
     user: {
       task: "Convert this capture into a memory packet.",
       schema: {
@@ -196,6 +209,47 @@ export async function processMemoryWithProvider(args: {
     },
   });
   return aiMemoryPacketSchema.parse(parsed);
+}
+
+export async function prepareDueReminderWithProvider(args: {
+  provider: OpenAICompatibleProvider;
+  reminder: Reminder;
+  state: CanvasState;
+  clientNow?: string;
+  timezone?: string;
+}): Promise<DueReminderPreparation> {
+  const parsed = await callProviderChatJSON({
+    provider: args.provider,
+    temperature: 0.2,
+    system:
+      "You are Quipu's in-app reminder agent. A reminder has become due. First prepare the app UI state, then prepare the user-facing browser notification. Return only valid JSON. Do not mark work as completed. Do not invent facts beyond the reminder and supplied app state. Keep notification text short and actionable.",
+    user: {
+      task: "Prepare the due reminder handoff before the browser notification is shown.",
+      schema: {
+        notificationTitle: "short notification title",
+        notificationBody: "one short notification body",
+        canvasGreetingTitle: "optional short greeting shown on the canvas before notification",
+        canvasGreetingSubtitle: "optional one-line canvas subtitle",
+        canvasBlockTitle: "optional title for the first canvas block",
+        canvasBlockSubtitle: "optional subtitle for the first canvas block",
+        canvasNote: "optional short note shown in the first canvas block",
+        suggestions: ["optional short next actions"],
+      },
+      reminder: {
+        id: args.reminder.id,
+        title: args.reminder.title,
+        naturalLanguageSource: args.reminder.naturalLanguageSource,
+        dueAt: args.reminder.dueAt,
+        timezone: args.reminder.timezone,
+        recurrence: args.reminder.recurrence,
+        place: args.reminder.place,
+      },
+      clientNow: args.clientNow,
+      timezone: args.timezone,
+      appState: args.state,
+    },
+  });
+  return dueReminderPreparationSchema.parse(parsed);
 }
 
 export type CanvasState = {
@@ -221,7 +275,7 @@ export async function generateCanvasWithProvider(args: {
     provider: args.provider,
     temperature: 0.6,
     system:
-      "You design Quipo's home canvas: a calm, personalized 'second brain' dashboard arranged from a fixed catalog of blocks. Decide which blocks to show, their order, span, and a warm personalized title/subtitle for each, based only on what the user has saved, confirmed preferences, and the time of day. Surface what is most relevant right now (reminders due today, things to watch tonight, recent dumps, review queue). Never invent demo/example content. Only reference itemIds and spaceIds that exist in the provided state. Do not return an ask block; asking and saving both happen in the global composer. For a spaces block, include every provided space id unless there are more than 12. Write a short personal greeting. Return ONLY valid JSON matching the schema.",
+      "You design Quipu's home canvas: a calm, personalized 'second brain' dashboard arranged from a fixed catalog of blocks. Decide which blocks to show, their order, span, and a warm personalized title/subtitle for each, based only on what the user has saved, confirmed preferences, and the time of day. Surface what is most relevant right now (reminders due today, things to watch tonight, recent dumps, review queue). Never invent demo/example content. Only reference itemIds and spaceIds that exist in the provided state. Do not return an ask block; asking and saving both happen in the global composer. For a spaces block, include every provided space id unless there are more than 12. Write a short personal greeting. Return ONLY valid JSON matching the schema.",
     user: {
       blockCatalog: {
         spotlight: "a featured item or a short digest message (use note + itemIds[0] optional)",
@@ -283,7 +337,7 @@ export async function answerMemoryWithProvider(args: {
     provider: args.provider,
     temperature: 0.2,
     system:
-      "You are Quipo's memory answerer. Answer the user's question using ONLY the candidate memories they previously saved. Never use outside knowledge and never invent facts. If the candidates do not contain the answer, say plainly that it is not in their saved memory. Keep the answer concise (1-4 sentences) and conversational. Cite by returning the `id` of every candidate you actually relied on in `citations`. Return ONLY valid JSON matching the schema.",
+      "You are Quipu's memory answerer. Answer the user's question using ONLY the candidate memories they previously saved. Never use outside knowledge and never invent facts. If the candidates do not contain the answer, say plainly that it is not in their saved memory. Keep the answer concise (1-4 sentences) and conversational. Cite by returning the `id` of every candidate you actually relied on in `citations`. Return ONLY valid JSON matching the schema.",
     user: {
       question: args.question,
       candidates: args.candidates.map((candidate) => ({

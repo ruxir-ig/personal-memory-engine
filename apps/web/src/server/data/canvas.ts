@@ -185,7 +185,7 @@ export function buildRulesLayout(state: CanvasState): CanvasLayout {
     greetingTitle: `Good ${tod}, ${name}`,
     greetingSubtitle:
       state.counts.items === 0
-        ? "Your canvas is empty. Drop a link, a note, a key, or a file below and Quipo organizes it for you."
+        ? "Your canvas is empty. Drop a link, a note, a key, or a file below and Quipu organizes it for you."
         : `${state.counts.items} memories across ${state.counts.spaces} spaces${state.todayCount ? ` - ${state.todayCount} due today` : ""}.`,
     blocks,
   };

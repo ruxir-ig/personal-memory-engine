@@ -2,11 +2,15 @@ import { runBrowserTool } from "./browser";
 import { runCalendarTool } from "./calendar";
 import { runClockTool } from "./clock";
 import { runFfmpegTool } from "./ffmpeg";
+import { runTasksTool } from "./tasks";
+import { runToolkitTool } from "./toolkit";
 import {
   browserArgsSchema,
   calendarArgsSchema,
   clockArgsSchema,
   ffmpegArgsSchema,
+  taskToolArgsSchema,
+  toolkitToolArgsSchema,
   type ToolContext,
   type ToolId,
   type ToolResult,
@@ -41,6 +45,20 @@ export async function executeTool(id: ToolId, rawArgs: unknown, context: ToolCon
         return invalidArgs(id, rawArgs, parsed.error.issues.map((issue) => issue.message).join("; "));
       }
       return runFfmpegTool(parsed.data);
+    }
+    case "tasks": {
+      const parsed = taskToolArgsSchema.safeParse(rawArgs ?? {});
+      if (!parsed.success) {
+        return invalidArgs(id, rawArgs, parsed.error.issues.map((issue) => issue.message).join("; "));
+      }
+      return runTasksTool(parsed.data, context);
+    }
+    case "toolkit": {
+      const parsed = toolkitToolArgsSchema.safeParse(rawArgs ?? {});
+      if (!parsed.success) {
+        return invalidArgs(id, rawArgs, parsed.error.issues.map((issue) => issue.message).join("; "));
+      }
+      return runToolkitTool(parsed.data, context);
     }
     default:
       return {

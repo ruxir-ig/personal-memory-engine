@@ -20,10 +20,10 @@ import type {
   SyncStatus,
   TimelineEvent,
 } from "@pme/shared";
-import { processMemoryWithProvider, type AiMemoryPacket, type OpenAICompatibleProvider } from "@/client/ai/provider";
+import { prepareDueReminderWithProvider, processMemoryWithProvider, type AiMemoryPacket, type DueReminderPreparation, type OpenAICompatibleProvider } from "@/client/ai/provider";
 import { askMemoryWithAgent } from "@/client/ai/agent";
 import { accentForKind, classifyCapture, extractSecretPayload, fileSpaceSuggestion, type SpaceSuggestion } from "./classify";
-import { markCanvasStale } from "./canvas";
+import { buildCanvasState, markCanvasStale, prepareCanvasForDueReminder } from "./canvas";
 import { getDefaultAiProvider } from "./providers";
 import { randomUUID, sha256Hex } from "./crypto";
 import { isVaultUnlocked } from "@/client/vault/crypto-vault";
@@ -39,6 +39,7 @@ import {
   resetMemoryStore,
   writeData,
 } from "./store";
+export { addTodoItem, listAgentTools, listEnabledAgentToolManifests, listTodoLists, listTodos, setAgentToolEnabled, updateTodoItem, upsertAgentTool, upsertTodoList } from "./agent-workspace";
 export { listProviders, upsertProvider, deleteProvider } from "./providers";
 export { listSpaces, getSpaceBySlug } from "./spaces";
 export { getCanvasLayout } from "./canvas";
@@ -422,6 +423,9 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
     summaries: data.summaries.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     intents: proposedIntents,
     reminders: data.reminders.slice().sort((a, b) => a.dueAt.localeCompare(b.dueAt)),
+    todoLists: data.todoLists,
+    todos: data.todos,
+    agentTools: data.agentTools,
     events: data.events.slice().sort((a, b) => (b.eventAt ?? b.capturedAt).localeCompare(a.eventAt ?? a.capturedAt)),
     providers: data.providers.map(providerForClient),
     preferences: data.preferences,
@@ -431,6 +435,8 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
       spaces: data.spaces.length,
       inbox: proposedIntents.length,
       reminders: data.reminders.filter((reminder) => reminder.status === "scheduled").length,
+      todos: data.todos.filter((todo) => todo.status === "open").length,
+      agentTools: data.agentTools.filter((tool) => tool.enabled).length,
       providers: data.providers.length,
       localProcessed: data.artifacts.filter((artifact) => artifact.syncStatus === "local_processed").length,
       pendingReview: data.artifacts.filter((artifact) => artifact.syncStatus === "pending_review").length + proposedIntents.length,
@@ -784,6 +790,55 @@ export async function createReminder(input: ReminderInput) {
   markCanvasStale(data);
   await writeData(data);
   return reminder;
+}
+
+export async function processDueReminder(input: { reminderId: string; clientNow?: string; timezone?: string }) {
+  const data = await readData();
+  const reminder = data.reminders.find((item) => item.id === input.reminderId);
+  if (!reminder) throw new Error("Reminder not found");
+  if (reminder.status !== "scheduled") throw new Error("Only scheduled reminders can be processed");
+
+  const currentTime = input.clientNow ? new Date(input.clientNow).getTime() : Date.now();
+  if (new Date(reminder.dueAt).getTime() > currentTime) throw new Error("Reminder is not due yet");
+
+  let preparation: DueReminderPreparation | undefined;
+  let agentError: string | undefined;
+  const provider = await getDefaultAiProvider(data);
+  if (provider) {
+    try {
+      preparation = await prepareDueReminderWithProvider({
+        provider,
+        reminder,
+        state: buildCanvasState(data, input.clientNow),
+        clientNow: input.clientNow,
+        timezone: input.timezone,
+      });
+    } catch (error) {
+      agentError = error instanceof Error ? error.message : "Reminder agent failed";
+    }
+  } else {
+    agentError = "No default AI provider is configured.";
+  }
+
+  const processedAt = now();
+  data.canvasLayout = await prepareCanvasForDueReminder({ data, reminder, clientNow: input.clientNow ?? processedAt, preparation });
+  reminder.notifiedAt = reminder.notifiedAt ?? processedAt;
+  reminder.agentProcessedAt = processedAt;
+  reminder.agentNotificationTitle = preparation?.notificationTitle ?? "Quipu reminder";
+  reminder.agentNotificationBody = preparation?.notificationBody ?? reminder.title;
+  reminder.agentUiSummary = preparation?.canvasNote ?? preparation?.canvasGreetingSubtitle;
+  reminder.agentError = agentError;
+
+  await writeData(data);
+  return {
+    reminder,
+    notification: {
+      title: reminder.agentNotificationTitle,
+      body: reminder.agentNotificationBody,
+    },
+    usedProvider: Boolean(provider && !agentError),
+    agentError,
+  };
 }
 
 export async function resetDemoStore() {

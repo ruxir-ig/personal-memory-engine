@@ -171,7 +171,7 @@ export async function processMemoryWithProvider(args: {
     provider: args.provider,
     temperature: 0.1,
     system:
-      "You are Quipo's memory router. Quipo is a personal second brain where the user dumps links, reels, notes, code, and tasks. Return only valid JSON. Classify the input and extract structure grounded only in the input; never invent facts. Pick a short, human topic name for `space` (e.g. 'Watch later', 'Reading list', 'Career', 'Recipes'). Reminders and preferences must require user confirmation.",
+      "You are Quipu's memory router. Quipu is a personal second brain where the user dumps links, reels, notes, code, and tasks. Return only valid JSON. Classify the input and extract structure grounded only in the input; never invent facts. Pick a short, human topic name for `space` (e.g. 'Watch later', 'Reading list', 'Career', 'Recipes'). Reminders and preferences must require user confirmation.",
     user: {
       task: "Convert this capture into a memory packet.",
       schema: {
@@ -217,7 +217,7 @@ export async function generateCanvasWithProvider(args: {
     provider: args.provider,
     temperature: 0.6,
     system:
-      "You design Quipo's home canvas: a calm, personalized 'second brain' dashboard arranged from a fixed catalog of blocks. Decide which blocks to show, their order, span, and a warm personalized title/subtitle for each, based only on what the user has saved, confirmed preferences, and the time of day. Surface what is most relevant right now (reminders due today, things to watch tonight, recent dumps, review queue). Never invent demo/example content. Only reference itemIds and spaceIds that exist in the provided state. Do not return an ask block; asking and saving both happen in the global composer. For a spaces block, include every provided space id unless there are more than 12. Write a short personal greeting. Return ONLY valid JSON matching the schema.",
+      "You design Quipu's home canvas: a calm, personalized 'second brain' dashboard arranged from a fixed catalog of blocks. Decide which blocks to show, their order, span, and a warm personalized title/subtitle for each, based only on what the user has saved, confirmed preferences, and the time of day. Surface what is most relevant right now (reminders due today, things to watch tonight, recent dumps, review queue). Never invent demo/example content. Only reference itemIds and spaceIds that exist in the provided state. Do not return an ask block; asking and saving both happen in the global composer. For a spaces block, include every provided space id unless there are more than 12. Write a short personal greeting. Return ONLY valid JSON matching the schema.",
     user: {
       blockCatalog: {
         spotlight: "a featured item or a short digest message (use note + itemIds[0] optional)",
@@ -279,7 +279,7 @@ export async function answerMemoryWithProvider(args: {
     provider: args.provider,
     temperature: 0.2,
     system:
-      "You are Quipo's memory answerer. Answer the user's question using ONLY the candidate memories they previously saved. Never use outside knowledge and never invent facts. If the candidates do not contain the answer, say plainly that it is not in their saved memory. Keep the answer concise (1-4 sentences) and conversational. Cite by returning the `id` of every candidate you actually relied on in `citations`. Return ONLY valid JSON matching the schema.",
+      "You are Quipu's memory answerer. Answer the user's question using ONLY the candidate memories they previously saved. Never use outside knowledge and never invent facts. If the candidates do not contain the answer, say plainly that it is not in their saved memory. Keep the answer concise (1-4 sentences) and conversational. Cite by returning the `id` of every candidate you actually relied on in `citations`. Return ONLY valid JSON matching the schema.",
     user: {
       question: args.question,
       candidates: args.candidates.map((candidate) => ({

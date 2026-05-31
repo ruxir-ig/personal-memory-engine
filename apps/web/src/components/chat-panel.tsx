@@ -86,7 +86,7 @@ export function ChatPanel({ suggestions }: { suggestions: string[] }) {
 
       {!ask.data ? (
         <EmptyState title="Grounded answers only" icon={<Sparkles size={20} />}>
-          Quipo answers from what you have actually saved and links every claim back to the source.
+          Quipu answers from what you have actually saved and links every claim back to the source.
         </EmptyState>
       ) : null}
     </div>

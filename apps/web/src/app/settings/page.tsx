@@ -4,7 +4,7 @@ import { SettingsPanel } from "@/components/settings-panel";
 export default function SettingsPage() {
   return (
     <>
-      <PageHeading kicker="Settings" title="Profile & providers" copy="Your name, your AI provider, and capture defaults. Everything stays on your device." />
+      <PageHeading kicker="Settings" title="Preferences" copy="Profile, appearance, vault, and AI keys — stored on this device only." />
       <SettingsPanel />
     </>
   );

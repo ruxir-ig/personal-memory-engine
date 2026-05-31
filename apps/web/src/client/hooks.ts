@@ -13,15 +13,22 @@ import {
   getDashboardSnapshot,
   getSpaceBySlug,
   importFileArtifact,
+  addTodoItem,
+  listAgentTools,
   listPreferences,
   listProviders,
   listReminders,
   listSpaces,
+  listTodoLists,
+  listTodos,
+  processDueReminder,
   listTimeline,
   querySearch,
   resetDemoStore,
+  updateTodoItem,
   updatePreference,
   upsertProvider,
+  upsertTodoList,
 } from "@/client/memory/repository";
 import { useMemoryReady } from "@/client/memory-provider";
 
@@ -36,6 +43,9 @@ export const memoryKeys = {
   reminders: ["memory", "reminders"] as const,
   preferences: ["memory", "preferences"] as const,
   providers: ["memory", "providers"] as const,
+  todoLists: ["memory", "todoLists"] as const,
+  todos: ["memory", "todos"] as const,
+  agentTools: ["memory", "agentTools"] as const,
 };
 
 export function useInvalidateMemory() {
@@ -95,6 +105,21 @@ export function useProviders() {
   return useQuery({ queryKey: memoryKeys.providers, queryFn: listProviders, enabled: ready });
 }
 
+export function useTodoLists() {
+  const ready = useMemoryReady();
+  return useQuery({ queryKey: memoryKeys.todoLists, queryFn: listTodoLists, enabled: ready });
+}
+
+export function useTodos() {
+  const ready = useMemoryReady();
+  return useQuery({ queryKey: memoryKeys.todos, queryFn: () => listTodos({ status: "all" }), enabled: ready });
+}
+
+export function useAgentTools() {
+  const ready = useMemoryReady();
+  return useQuery({ queryKey: memoryKeys.agentTools, queryFn: listAgentTools, enabled: ready });
+}
+
 export function useCaptureMutation() {
   const invalidate = useInvalidateMemory();
   return useMutation({
@@ -104,7 +129,8 @@ export function useCaptureMutation() {
 }
 
 export function useAskMutation() {
-  return useMutation({ mutationFn: (input: ChatInput) => askMemory(input) });
+  const invalidate = useInvalidateMemory();
+  return useMutation({ mutationFn: (input: ChatInput) => askMemory(input), onSuccess: () => invalidate() });
 }
 
 export function useConfirmIntentMutation() {
@@ -119,6 +145,38 @@ export function useCreateReminderMutation() {
   const invalidate = useInvalidateMemory();
   return useMutation({
     mutationFn: (input: ReminderInput) => createReminder(input),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useProcessDueReminderMutation() {
+  const invalidate = useInvalidateMemory();
+  return useMutation({
+    mutationFn: (input: { reminderId: string; clientNow?: string; timezone?: string }) => processDueReminder(input),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useCreateTodoListMutation() {
+  const invalidate = useInvalidateMemory();
+  return useMutation({
+    mutationFn: (input: { title: string; description?: string }) => upsertTodoList(input),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useAddTodoMutation() {
+  const invalidate = useInvalidateMemory();
+  return useMutation({
+    mutationFn: (input: { title: string; listId?: string; listTitle?: string; notes?: string; priority?: "low" | "normal" | "high"; dueAt?: string; tags?: string[] }) => addTodoItem(input),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateTodoMutation() {
+  const invalidate = useInvalidateMemory();
+  return useMutation({
+    mutationFn: (input: { itemId: string; title?: string; notes?: string; status?: "open" | "done" | "cancelled"; priority?: "low" | "normal" | "high"; dueAt?: string | null; tags?: string[] }) => updateTodoItem(input),
     onSuccess: () => invalidate(),
   });
 }
