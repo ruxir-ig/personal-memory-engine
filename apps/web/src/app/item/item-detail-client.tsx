@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Download, Hash } from "lucide-react";
 import type { CSSProperties } from "react";
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeading } from "@/components/page-heading";
 import { SecretCard } from "@/components/cards/secret-card";
 import { kindAccentColor, kindMeta } from "@/lib/registry";
+import { itemIdFromSearchParam } from "@/lib/item-route";
 import { formatDateTime } from "@/lib/utils";
 import { spaceHref } from "@/lib/space-routes";
 import { useArtifactById } from "@/client/hooks";
@@ -19,8 +20,9 @@ function str(value: unknown): string | undefined {
 }
 
 export function ItemDetailClient() {
-  const params = useParams<{ id: string }>();
-  const record = useArtifactById(params.id);
+  const searchParams = useSearchParams();
+  const itemId = itemIdFromSearchParam(searchParams.get("id"));
+  const record = useArtifactById(itemId ?? "");
   const [rawUrl, setRawUrl] = useState<string>();
 
   useEffect(() => {
@@ -37,6 +39,10 @@ export function ItemDetailClient() {
       if (url) URL.revokeObjectURL(url);
     };
   }, [record.data?.artifact.originalPath]);
+
+  if (!itemId) {
+    return <EmptyState title="No item selected">Open a memory from the canvas or search.</EmptyState>;
+  }
 
   if (record.isLoading) return <div className="faint">Loading item…</div>;
   if (!record.data) return <EmptyState title="Item not found">This memory is not in your local store.</EmptyState>;

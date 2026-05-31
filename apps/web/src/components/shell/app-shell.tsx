@@ -128,7 +128,6 @@ function SidebarNav() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
-
   useEffect(() => {
     setNavOpen(false);
   }, [pathname]);

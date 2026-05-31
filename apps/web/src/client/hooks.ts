@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CaptureInput, ChatInput, PreferenceInput, ProviderInput, ReminderInput, SearchInput } from "@pme/shared";
 import {
@@ -8,9 +9,11 @@ import {
   confirmIntent,
   createReminder,
   deleteProvider,
+  enrichCanvasLayoutWithAi,
   getArtifactById,
   getCanvasLayout,
   getDashboardSnapshot,
+  layoutFromSnapshot,
   getSpaceBySlug,
   importFileArtifact,
   addTodoItem,
@@ -62,7 +65,19 @@ export function useDashboardSnapshot() {
 
 export function useCanvasLayout(clientNow?: string) {
   const ready = useMemoryReady();
-  return useQuery({ queryKey: memoryKeys.canvas(clientNow), queryFn: () => getCanvasLayout(clientNow), enabled: ready });
+  const dashboard = useDashboardSnapshot();
+  const instant = useMemo(
+    () => (dashboard.data ? layoutFromSnapshot(dashboard.data, clientNow) : undefined),
+    [dashboard.data, clientNow],
+  );
+  return useQuery({
+    queryKey: memoryKeys.canvas(clientNow),
+    queryFn: () => getCanvasLayout(clientNow),
+    enabled: ready,
+    placeholderData: instant,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
 }
 
 export function useSpaces() {
@@ -124,7 +139,10 @@ export function useCaptureMutation() {
   const invalidate = useInvalidateMemory();
   return useMutation({
     mutationFn: (input: CaptureInput) => captureText(input),
-    onSuccess: () => invalidate(),
+    onSuccess: async (_data, variables) => {
+      await invalidate();
+      void enrichCanvasLayoutWithAi(variables.clientNow).then(() => invalidate());
+    },
   });
 }
 

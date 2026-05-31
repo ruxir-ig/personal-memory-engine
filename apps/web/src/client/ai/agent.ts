@@ -38,6 +38,18 @@ const agentFinalAnswerSchema = z.object({
   toolsUsed: z.array(toolIdSchema).max(3).default([]),
 });
 
+function isMutatingToolCall(call: { toolId: ToolId; arguments: Record<string, unknown> }) {
+  if (call.toolId === "calendar") return call.arguments.action === "create_reminder";
+  if (call.toolId === "memory") return ["create", "update", "delete"].includes(String(call.arguments.action));
+  if (call.toolId === "tasks") return ["create", "update", "delete"].includes(String(call.arguments.action));
+  return false;
+}
+
+function summarizeMutatingTools(toolResults: ToolResult[]) {
+  const summaries = toolResults.map((result) => result.summary).filter(Boolean);
+  return summaries.join(" ");
+}
+
 export type AgentAnswer = {
   answer: string;
   citedChunkIds: string[];
@@ -64,7 +76,7 @@ export async function askMemoryWithAgent(args: {
     artifactKind: candidate.artifactKind,
     artifactType: candidate.artifactType,
     title: candidate.title,
-    excerpt: candidate.text.slice(0, 220),
+    excerpt: redactSecretsForLlm(candidate.text.slice(0, 220)).text,
     score: index === 0 ? 1 : undefined,
   }));
 
@@ -98,6 +110,19 @@ export async function askMemoryWithAgent(args: {
     const invocations = toolInvocationBatchSchema.parse(invocationRaw);
     for (const call of invocations.tools) {
       toolResults.push(await executeTool(call.toolId, call.arguments, context));
+    }
+    if (
+      invocations.tools.length > 0 &&
+      invocations.tools.every(isMutatingToolCall) &&
+      toolResults.every((result) => result.ok)
+    ) {
+      return {
+        answer: summarizeMutatingTools(toolResults),
+        citedChunkIds: [],
+        uncertainty: "Updated local data through the agent tool.",
+        toolsUsed: [...new Set(invocations.tools.map((call) => call.toolId))],
+        toolResults,
+      };
     }
   }
 

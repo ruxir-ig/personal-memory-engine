@@ -16,6 +16,34 @@ function inWindow(iso: string | undefined, start: string, end: string) {
 }
 
 export async function runCalendarTool(args: CalendarArgs, context: ToolContext): Promise<ToolResult> {
+  if (args.action === "create_reminder") {
+    try {
+      const { createReminder } = await import("@/client/memory/repository");
+      const timezone = args.timezone || context.timezone || "UTC";
+      const dueAt = new Date(args.dueAt!).toISOString();
+      const reminder = await createReminder({
+        title: args.title!,
+        dueAt,
+        sourceText: args.sourceText ?? args.title,
+        timezone,
+      });
+      return {
+        toolId: "calendar",
+        ok: true,
+        summary: `Set reminder: ${reminder.title}.`,
+        data: { reminder },
+      };
+    } catch (error) {
+      return {
+        toolId: "calendar",
+        ok: false,
+        summary: "Reminder tool failed.",
+        data: { args },
+        error: error instanceof Error ? error.message : "Unknown reminder error",
+      };
+    }
+  }
+
   const { timezone, start, end } = windowBounds(args, context);
   const { readData } = await import("@/client/memory/store");
   const data = await readData();

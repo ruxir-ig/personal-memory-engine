@@ -5,6 +5,7 @@ import { ArrowUpRight, Loader2, Search } from "lucide-react";
 import { useState } from "react";
 import type { ArtifactType } from "@pme/shared";
 import { useSearch } from "@/client/hooks";
+import { itemHref } from "@/lib/item-route";
 import { EmptyState } from "./empty-state";
 
 const artifactTypes: ArtifactType[] = ["note", "text", "markdown", "image", "pdf", "document", "audio", "video", "chat", "link"];
@@ -43,14 +44,14 @@ export function SearchWorkbench() {
             <article className="card pad hover" key={result.chunk.id}>
               <div className="row top between" style={{ gap: 12 }}>
                 <div className="grow">
-                  <Link className="item-title clamp-2" href={`/item/${result.artifact.id}`} style={{ fontSize: 15 }}>
+                  <Link className="item-title clamp-2" href={itemHref(result.artifact.id)} style={{ fontSize: 15 }}>
                     {result.artifact.title}
                   </Link>
                   <p className="dim clamp-3" style={{ fontSize: 13, marginTop: 6, lineHeight: 1.55 }}>
                     {result.chunk.text}
                   </p>
                 </div>
-                <Link className="icon-btn" href={`/item/${result.artifact.id}`} title="Open source" aria-label="Open source">
+                <Link className="icon-btn" href={itemHref(result.artifact.id)} title="Open source" aria-label="Open source">
                   <ArrowUpRight size={16} />
                 </Link>
               </div>

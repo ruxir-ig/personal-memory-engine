@@ -3,6 +3,7 @@
 import { KeyRound, Loader2, Save, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { PreferenceRecord, ProviderCapability, ProviderKind } from "@pme/shared";
+import { testProviderChat } from "@/client/ai/provider";
 import {
   useDeleteProviderMutation,
   useInvalidateMemory,
@@ -11,6 +12,7 @@ import {
   useUpdatePreferenceMutation,
   useUpsertProviderMutation,
 } from "@/client/hooks";
+import { useVault } from "@/client/vault-provider";
 import { DemoResetButton } from "./demo-reset-button";
 import { ThemeSetting } from "./theme-toggle";
 import { VaultPanel } from "./vault-panel";
@@ -38,6 +40,7 @@ function valueAsString(value: unknown, fallback = "") {
 
 export function SettingsPanel() {
   const invalidate = useInvalidateMemory();
+  const vault = useVault();
   const providers = useProviders();
   const preferences = usePreferences();
   const upsert = useUpsertProviderMutation();
@@ -64,6 +67,9 @@ export function SettingsPanel() {
   const [embeddingModel, setEmbeddingModel] = useState("");
   const [selectedCapabilities, setSelectedCapabilities] = useState<ProviderCapability[]>(["chat"]);
   const [showProviderForm, setShowProviderForm] = useState(false);
+  const [providerError, setProviderError] = useState("");
+  const [providerTestResult, setProviderTestResult] = useState("");
+  const [testingProvider, setTestingProvider] = useState(false);
 
   useEffect(() => {
     setDisplayName(storedProfile.displayName);
@@ -81,6 +87,8 @@ export function SettingsPanel() {
     setLabel(defaults.label);
     setBaseUrl(defaults.baseUrl);
     setChatModel(defaults.chatModel);
+    setProviderError("");
+    setProviderTestResult("");
   }
 
   function toggleCapability(capability: ProviderCapability) {
@@ -96,11 +104,43 @@ export function SettingsPanel() {
   }
 
   async function saveProvider() {
+    setProviderError("");
+    setProviderTestResult("");
+    if (!vault.unlocked) {
+      setProviderError("Unlock your vault above before saving provider API keys.");
+      return;
+    }
     if (!label.trim() || !apiKey.trim() || selectedCapabilities.length === 0) return;
-    await upsert.mutateAsync({ label, kind, baseUrl, apiKey, chatModel, embeddingModel, capabilities: selectedCapabilities, isDefault: providers.data?.length === 0 });
-    setApiKey("");
-    setShowProviderForm(false);
-    await invalidate();
+    try {
+      await upsert.mutateAsync({ label, kind, baseUrl, apiKey, chatModel, embeddingModel, capabilities: selectedCapabilities, isDefault: providers.data?.length === 0 });
+      setApiKey("");
+      setShowProviderForm(false);
+      await invalidate();
+    } catch (cause) {
+      setProviderError(cause instanceof Error ? cause.message : "Provider could not be saved.");
+    }
+  }
+
+  async function testProvider() {
+    setProviderError("");
+    setProviderTestResult("");
+    if (!label.trim() || !apiKey.trim() || !chatModel.trim()) return;
+    setTestingProvider(true);
+    try {
+      const reply = await testProviderChat({
+        label: label.trim(),
+        kind,
+        baseUrl: baseUrl.trim() || undefined,
+        apiKey: apiKey.trim(),
+        chatModel: chatModel.trim(),
+        capabilities: selectedCapabilities,
+      });
+      setProviderTestResult(`Provider responded: ${reply}`);
+    } catch (cause) {
+      setProviderError(cause instanceof Error ? cause.message : "Provider test failed.");
+    } finally {
+      setTestingProvider(false);
+    }
   }
 
   async function removeProvider(providerId: string, providerLabel: string) {
@@ -241,8 +281,29 @@ export function SettingsPanel() {
                   </button>
                 ))}
               </div>
+              {!vault.unlocked ? (
+                <p className="dim" style={{ fontSize: 12, lineHeight: 1.45, margin: 0 }}>
+                  Unlock your vault above before saving provider API keys.
+                </p>
+              ) : null}
+              {providerError ? <span style={{ color: "var(--danger)", fontSize: 12 }}>{providerError}</span> : null}
+              {providerTestResult ? <span style={{ color: "var(--k-article)", fontSize: 12 }}>{providerTestResult}</span> : null}
               <div className="settings-actions">
-                <button className="btn sm" type="button" onClick={saveProvider} disabled={!label.trim() || !apiKey.trim() || selectedCapabilities.length === 0 || providerBusy}>
+                <button
+                  className="btn secondary sm"
+                  type="button"
+                  onClick={testProvider}
+                  disabled={!label.trim() || !apiKey.trim() || !chatModel.trim() || testingProvider}
+                >
+                  {testingProvider ? <Loader2 size={15} className="spin" /> : <KeyRound size={15} />}
+                  Test provider
+                </button>
+                <button
+                  className="btn sm"
+                  type="button"
+                  onClick={saveProvider}
+                  disabled={!vault.unlocked || !label.trim() || !apiKey.trim() || selectedCapabilities.length === 0 || providerBusy}
+                >
                   {providerBusy ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
                   Save provider
                 </button>

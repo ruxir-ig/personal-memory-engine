@@ -144,6 +144,55 @@ export async function updateTodoItem(args: { itemId: string; title?: string; not
   return publicTodo(todo, list);
 }
 
+function todoMatchesQuery(todo: TodoItem, list: TodoList | undefined, query: string) {
+  const q = normalizeTitle(query).toLowerCase();
+  const haystack = [todo.id, todo.title, todo.notes, todo.status, todo.priority, todo.tags.join(" "), list?.title].filter(Boolean).join(" ").toLowerCase();
+  return haystack.includes(q);
+}
+
+export async function deleteTodoItems(args: {
+  itemId?: string;
+  query?: string;
+  listId?: string;
+  listTitle?: string;
+  status?: TodoStatus | "all";
+  includeArchivedLists?: boolean;
+  maxCount?: number;
+}) {
+  const data = await readData();
+  const listsById = new Map(data.todoLists.map((list) => [list.id, list]));
+  const list = findList(data.todoLists, args);
+  const listIds = list
+    ? new Set([list.id])
+    : new Set(data.todoLists.filter((candidate) => args.includeArchivedLists || !candidate.archived).map((candidate) => candidate.id));
+
+  let matches = data.todos.filter((todo) => listIds.has(todo.listId));
+  if (args.itemId) matches = matches.filter((todo) => todo.id === args.itemId);
+  if (args.status && args.status !== "all") matches = matches.filter((todo) => todo.status === args.status);
+  if (args.query) matches = matches.filter((todo) => todoMatchesQuery(todo, listsById.get(todo.listId), args.query!));
+
+  if (!args.itemId && !args.query && !args.listId && !args.listTitle && !args.status && !args.maxCount) {
+    throw new Error("Provide itemId, query, group, status, or maxCount before deleting tasks.");
+  }
+  if (args.maxCount && matches.length !== args.maxCount) {
+    throw new Error(`Matched ${matches.length} tasks, not ${args.maxCount}. Refine the request before deleting.`);
+  }
+  if (matches.length === 0) throw new Error("No matching tasks found.");
+  if (!args.maxCount && matches.length > 1 && !args.itemId) {
+    throw new Error(`Matched ${matches.length} tasks. Provide an exact count or a more specific query before deleting.`);
+  }
+
+  const deletedIds = new Set(matches.map((todo) => todo.id));
+  const deleted = matches.map((todo) => publicTodo(todo, listsById.get(todo.listId)));
+  const timestamp = now();
+  data.todos = data.todos.filter((todo) => !deletedIds.has(todo.id));
+  for (const listItem of data.todoLists) {
+    if (matches.some((todo) => todo.listId === listItem.id)) listItem.updatedAt = timestamp;
+  }
+  await writeData(data);
+  return deleted;
+}
+
 export async function listAgentTools() {
   const data = await readData();
   return data.agentTools.slice().sort((a, b) => a.name.localeCompare(b.name));

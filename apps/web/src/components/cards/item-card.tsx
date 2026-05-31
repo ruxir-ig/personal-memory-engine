@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Play } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { Artifact, MemoryKind, SummaryRecord } from "@pme/shared";
+import { itemHref } from "@/lib/item-route";
 import { kindAccentColor, kindMeta } from "@/lib/registry";
 import { hueFromString, relativeTime } from "@/lib/utils";
 import { SecretCard } from "./secret-card";
@@ -29,7 +30,7 @@ export function ItemCard({ item, summary }: { item: Artifact; summary?: SummaryR
   const url = str(s.url);
   const host = str(s.host) ?? str(s.platform);
   const ext = Boolean(url);
-  const href = url ?? `/item/${item.id}`;
+  const href = url ?? itemHref(item.id);
   const meta = kindMeta[item.kind] ?? kindMeta.note;
   const Icon = meta.icon;
 

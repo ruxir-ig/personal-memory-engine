@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { canvasLayoutSchema, memoryKindSchema, type CanvasLayout, type ProviderCapability, type ProviderKind } from "@pme/shared";
+import { llmContextForRedactions, redactSecretsForLlm } from "./sanitize-for-llm";
 
 export type OpenAICompatibleProvider = {
   label: string;
@@ -167,11 +168,12 @@ export async function processMemoryWithProvider(args: {
   clientNow?: string;
   timezone?: string;
 }): Promise<AiMemoryPacket> {
+  const redacted = redactSecretsForLlm(args.text);
   const parsed = await callProviderChatJSON({
     provider: args.provider,
     temperature: 0.1,
     system:
-      "You are Quipu's memory router. Quipu is a personal second brain where the user dumps links, reels, notes, code, and tasks. Return only valid JSON. Classify the input and extract structure grounded only in the input; never invent facts. Pick a short, human topic name for `space` (e.g. 'Watch later', 'Reading list', 'Career', 'Recipes'). Reminders and preferences must require user confirmation.",
+      "You are Quipu's memory router. Quipu is a personal second brain where the user dumps links, reels, notes, code, and tasks. Return only valid JSON. Classify the input and extract structure grounded only in the input; never invent facts. Pick a short, human topic name for `space` (e.g. 'Watch later', 'Reading list', 'Career', 'Recipes'). Reminders and preferences must require user confirmation. If encryptedCredentialsDetected is present, the user included secrets that were encrypted locally and redacted - never ask for or infer the plaintext.",
     user: {
       task: "Convert this capture into a memory packet.",
       schema: {
@@ -188,7 +190,8 @@ export async function processMemoryWithProvider(args: {
       sourceLabel: args.sourceLabel,
       clientNow: args.clientNow,
       timezone: args.timezone,
-      input: args.text,
+      input: redacted.text,
+      encryptedCredentialsDetected: llmContextForRedactions(redacted.redactions),
     },
   });
   return aiMemoryPacketSchema.parse(parsed);
@@ -275,18 +278,20 @@ export async function answerMemoryWithProvider(args: {
   question: string;
   candidates: AnswerCandidate[];
 }): Promise<GroundedAnswer> {
+  const redactedQuestion = redactSecretsForLlm(args.question);
   const parsed = await callProviderChatJSON({
     provider: args.provider,
     temperature: 0.2,
     system:
       "You are Quipu's memory answerer. Answer the user's question using ONLY the candidate memories they previously saved. Never use outside knowledge and never invent facts. If the candidates do not contain the answer, say plainly that it is not in their saved memory. Keep the answer concise (1-4 sentences) and conversational. Cite by returning the `id` of every candidate you actually relied on in `citations`. Return ONLY valid JSON matching the schema.",
     user: {
-      question: args.question,
+      question: redactedQuestion.text,
+      encryptedCredentialsDetected: llmContextForRedactions(redactedQuestion.redactions),
       candidates: args.candidates.map((candidate) => ({
         id: candidate.chunkId,
         title: candidate.title,
         source: candidate.source,
-        text: candidate.text.slice(0, 700),
+        text: redactSecretsForLlm(candidate.text.slice(0, 700)).text,
       })),
       schema: {
         answer: "concise answer grounded only in the candidates; if unknown, say it is not in saved memory",

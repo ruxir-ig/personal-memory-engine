@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight, Clock3 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeading } from "@/components/page-heading";
+import { itemHref } from "@/lib/item-route";
 import { formatDateTime, relativeTime } from "@/lib/utils";
 import { useTimeline } from "@/client/hooks";
 
@@ -43,7 +44,7 @@ export default function TimelinePage() {
                     </div>
                   </div>
                   {event.artifactId ? (
-                    <Link className="icon-btn" href={`/item/${event.artifactId}`} title="Open source" aria-label="Open source">
+                    <Link className="icon-btn" href={itemHref(event.artifactId)} title="Open source" aria-label="Open source">
                       <ArrowUpRight size={16} />
                     </Link>
                   ) : null}

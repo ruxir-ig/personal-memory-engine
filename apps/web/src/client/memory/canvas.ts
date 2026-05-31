@@ -1,4 +1,4 @@
-import type { Artifact, CanvasBlock, CanvasLayout, PreferenceRecord, Reminder } from "@pme/shared";
+import type { Artifact, CanvasBlock, CanvasLayout, DashboardSnapshot, PreferenceRecord, Reminder } from "@pme/shared";
 import { generateCanvasWithProvider, type CanvasState, type DueReminderPreparation } from "@/client/ai/provider";
 import { randomUUID } from "./crypto";
 import { getDefaultAiProvider } from "./providers";
@@ -51,7 +51,8 @@ export function buildCanvasState(data: MemoryData, clientNow?: string): CanvasSt
   const proposed = data.intents.filter((i) => i.status === "proposed");
   const todayCount =
     data.reminders.filter((r) => r.status === "scheduled" && isToday(r.dueAt)).length +
-    data.events.filter((e) => isToday(e.eventAt ?? e.capturedAt)).length;
+    data.events.filter((e) => isToday(e.eventAt ?? e.capturedAt)).length +
+    data.todos.filter((todo) => todo.status === "open" && isToday(todo.dueAt)).length;
 
   return {
     displayName: displayNameFrom(data.preferences),
@@ -259,6 +260,48 @@ export async function prepareCanvasForDueReminder(args: {
   );
 }
 
+function snapshotToMemoryData(snapshot: DashboardSnapshot): MemoryData {
+  return {
+    artifacts: snapshot.artifacts,
+    spaces: snapshot.spaces,
+    chunks: [],
+    summaries: snapshot.summaries,
+    intents: snapshot.intents,
+    entities: [],
+    edges: [],
+    events: snapshot.events,
+    reminders: snapshot.reminders,
+    todoLists: snapshot.todoLists,
+    todos: snapshot.todos,
+    agentTools: snapshot.agentTools,
+    preferences: snapshot.preferences,
+    providers: snapshot.providers as MemoryData["providers"],
+    ingestionRuns: [],
+    feedback: [],
+  };
+}
+
+/** Instant rules layout for UI — no LLM round-trip. */
+export function layoutFromSnapshot(snapshot: DashboardSnapshot, clientNow?: string): CanvasLayout {
+  const state = buildCanvasState(snapshotToMemoryData(snapshot), clientNow);
+  return finalizeLayout(buildRulesLayout(state), state, clientNow);
+}
+
+/** Regenerate canvas with AI after capture (background; optional). */
+export async function enrichCanvasLayoutWithAi(clientNow?: string): Promise<CanvasLayout | null> {
+  const data = await readData();
+  const state = buildCanvasState(data, clientNow);
+  if (state.counts.items === 0) return null;
+  try {
+    const layout = await produceLayout(data, clientNow, state);
+    data.canvasLayout = layout;
+    await writeData(data);
+    return layout;
+  } catch {
+    return null;
+  }
+}
+
 export async function getCanvasLayout(clientNow?: string): Promise<CanvasLayout> {
   const data = await readData();
   const state = buildCanvasState(data, clientNow);
@@ -266,8 +309,8 @@ export async function getCanvasLayout(clientNow?: string): Promise<CanvasLayout>
     const sanitized = sanitizeLayout(data.canvasLayout, data);
     if (sanitized.blocks.length > 0 && layoutIsFresh(sanitized, state, clientNow)) return sanitized;
   }
-  const layout = await produceLayout(data, clientNow, state);
-  data.canvasLayout = layout;
+  const rules = finalizeLayout(buildRulesLayout(state), state, clientNow);
+  data.canvasLayout = rules;
   await writeData(data);
-  return layout;
+  return rules;
 }

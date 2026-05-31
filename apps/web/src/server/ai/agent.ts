@@ -11,6 +11,7 @@ import {
   buildToolInvocationUserPayload,
 } from "@/server/tools/prompts";
 import { toolIdSchema, type ToolContext, type ToolId, type ToolResult } from "@/server/tools/types";
+import { llmContextForRedactions, redactSecretsForLlm } from "./sanitize-for-llm";
 
 const agentPlanSchema = z.object({
   action: z.enum(["answer_from_memory", "use_tools"]),
@@ -37,6 +38,18 @@ const agentFinalAnswerSchema = z.object({
   toolsUsed: z.array(toolIdSchema).max(3).default([]),
 });
 
+function isMutatingToolCall(call: { toolId: ToolId; arguments: Record<string, unknown> }) {
+  if (call.toolId === "calendar") return call.arguments.action === "create_reminder";
+  if (call.toolId === "memory") return ["create", "update", "delete"].includes(String(call.arguments.action));
+  if (call.toolId === "tasks") return ["create", "update", "delete"].includes(String(call.arguments.action));
+  return false;
+}
+
+function summarizeMutatingTools(toolResults: ToolResult[]) {
+  const summaries = toolResults.map((result) => result.summary).filter(Boolean);
+  return summaries.join(" ");
+}
+
 export type AgentAnswer = {
   answer: string;
   citedChunkIds: string[];
@@ -54,6 +67,7 @@ export async function askMemoryWithAgent(args: {
 }): Promise<AgentAnswer> {
   const timezone = args.timezone || "UTC";
   const context: ToolContext = { timezone, clientNow: args.clientNow };
+  const redactedQuestion = redactSecretsForLlm(args.question);
   const customTools = await listEnabledAgentToolManifests();
 
   const memoryPreview = args.candidates.map((candidate, index) => ({
@@ -62,7 +76,7 @@ export async function askMemoryWithAgent(args: {
     artifactKind: candidate.artifactKind,
     artifactType: candidate.artifactType,
     title: candidate.title,
-    excerpt: candidate.text.slice(0, 220),
+    excerpt: redactSecretsForLlm(candidate.text.slice(0, 220)).text,
     score: index === 0 ? 1 : undefined,
   }));
 
@@ -71,10 +85,11 @@ export async function askMemoryWithAgent(args: {
     temperature: 0.1,
     system: buildPlanningSystemPrompt(customTools),
     user: buildPlanningUserPayload({
-      question: args.question,
+      question: redactedQuestion.text,
       memoryPreview,
       timezone,
       clientNow: args.clientNow,
+      encryptedCredentialsDetected: llmContextForRedactions(redactedQuestion.redactions),
     }),
   });
   const plan = agentPlanSchema.parse(planRaw);
@@ -86,7 +101,7 @@ export async function askMemoryWithAgent(args: {
       temperature: 0.1,
       system: buildToolInvocationSystemPrompt(plan.selectedToolIds, customTools),
       user: buildToolInvocationUserPayload({
-        question: args.question,
+        question: redactedQuestion.text,
         selectedToolIds: plan.selectedToolIds,
         timezone,
         clientNow: args.clientNow,
@@ -96,6 +111,19 @@ export async function askMemoryWithAgent(args: {
     for (const call of invocations.tools) {
       toolResults.push(await executeTool(call.toolId, call.arguments, context));
     }
+    if (
+      invocations.tools.length > 0 &&
+      invocations.tools.every(isMutatingToolCall) &&
+      toolResults.every((result) => result.ok)
+    ) {
+      return {
+        answer: summarizeMutatingTools(toolResults),
+        citedChunkIds: [],
+        uncertainty: "Updated local data through the agent tool.",
+        toolsUsed: [...new Set(invocations.tools.map((call) => call.toolId))],
+        toolResults,
+      };
+    }
   }
 
   const finalRaw = await callProviderChatJSON({
@@ -103,12 +131,13 @@ export async function askMemoryWithAgent(args: {
     temperature: 0.2,
     system: buildFinalAnswerSystemPrompt(),
     user: buildFinalAnswerUserPayload({
-      question: args.question,
+      question: redactedQuestion.text,
+      encryptedCredentialsDetected: llmContextForRedactions(redactedQuestion.redactions),
       candidates: args.candidates.map((candidate) => ({
         id: candidate.chunkId,
         title: candidate.title,
         source: candidate.source,
-        text: candidate.text.slice(0, 900),
+        text: redactSecretsForLlm(candidate.text.slice(0, 900)).text,
       })),
       toolResults: toolResults.map((result) => ({
         toolId: result.toolId,

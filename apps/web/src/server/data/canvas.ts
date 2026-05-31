@@ -51,7 +51,8 @@ export function buildCanvasState(data: MemoryData, clientNow?: string): CanvasSt
   const proposed = data.intents.filter((i) => i.status === "proposed");
   const todayCount =
     data.reminders.filter((r) => r.status === "scheduled" && isToday(r.dueAt)).length +
-    data.events.filter((e) => isToday(e.eventAt ?? e.capturedAt)).length;
+    data.events.filter((e) => isToday(e.eventAt ?? e.capturedAt)).length +
+    data.todos.filter((todo) => todo.status === "open" && isToday(todo.dueAt)).length;
 
   return {
     displayName: displayNameFrom(data.preferences),
@@ -227,6 +228,20 @@ async function produceLayout(data: MemoryData, clientNow?: string, state = build
   return finalizeLayout(buildRulesLayout(state), state, clientNow);
 }
 
+export async function enrichCanvasLayoutWithAi(clientNow?: string): Promise<CanvasLayout | null> {
+  const data = await readData();
+  const state = buildCanvasState(data, clientNow);
+  if (state.counts.items === 0) return null;
+  try {
+    const layout = await produceLayout(data, clientNow, state);
+    data.canvasLayout = layout;
+    await writeData(data);
+    return layout;
+  } catch {
+    return null;
+  }
+}
+
 export async function getCanvasLayout(clientNow?: string): Promise<CanvasLayout> {
   const data = await readData();
   const state = buildCanvasState(data, clientNow);
@@ -234,8 +249,8 @@ export async function getCanvasLayout(clientNow?: string): Promise<CanvasLayout>
     const sanitized = sanitizeLayout(data.canvasLayout, data);
     if (sanitized.blocks.length > 0 && layoutIsFresh(sanitized, state, clientNow)) return sanitized;
   }
-  const layout = await produceLayout(data, clientNow, state);
-  data.canvasLayout = layout;
+  const rules = finalizeLayout(buildRulesLayout(state), state, clientNow);
+  data.canvasLayout = rules;
   await writeData(data);
-  return layout;
+  return rules;
 }

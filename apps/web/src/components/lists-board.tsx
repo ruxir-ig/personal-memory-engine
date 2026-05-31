@@ -2,40 +2,24 @@
 
 import { Check, Circle, Loader2, Plus, Wrench } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useAddTodoMutation, useAgentTools, useCreateTodoListMutation, useTodoLists, useTodos, useUpdateTodoMutation } from "@/client/hooks";
+import { useAddTodoMutation, useAgentTools, useTodos, useUpdateTodoMutation } from "@/client/hooks";
 import { EmptyState } from "./empty-state";
 
 export function ListsBoard() {
-  const lists = useTodoLists();
   const todos = useTodos();
   const agentTools = useAgentTools();
-  const createList = useCreateTodoListMutation();
   const addTodo = useAddTodoMutation();
   const updateTodo = useUpdateTodoMutation();
 
-  const [listTitle, setListTitle] = useState("");
   const [todoTitle, setTodoTitle] = useState("");
-  const [selectedListId, setSelectedListId] = useState("");
-
-  const activeListId = selectedListId || lists.data?.[0]?.id || "";
-  const activeList = lists.data?.find((list) => list.id === activeListId);
   const visibleTodos = useMemo(() => {
-    if (!activeListId) return todos.data ?? [];
-    return (todos.data ?? []).filter((todo) => todo.listId === activeListId);
-  }, [activeListId, todos.data]);
-
-  async function submitList() {
-    const title = listTitle.trim();
-    if (!title) return;
-    const list = await createList.mutateAsync({ title });
-    setSelectedListId(list.id);
-    setListTitle("");
-  }
+    return todos.data ?? [];
+  }, [todos.data]);
 
   async function submitTodo() {
     const title = todoTitle.trim();
     if (!title) return;
-    await addTodo.mutateAsync({ title, listId: activeListId || undefined, listTitle: activeListId ? undefined : "Inbox" });
+    await addTodo.mutateAsync({ title, listTitle: "Inbox" });
     setTodoTitle("");
   }
 
@@ -45,30 +29,10 @@ export function ListsBoard() {
         <div className="section-head">
           <div className="block-title">
             <span className="ic">
-              <Plus size={16} />
+              <Wrench size={16} />
             </span>
-            New list
+            Agent tools
           </div>
-        </div>
-        <form
-          className="stack"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submitList();
-          }}
-        >
-          <label className="field">
-            <span>Name</span>
-            <input className="input" value={listTitle} onChange={(event) => setListTitle(event.target.value)} placeholder="Launch, groceries, backlog..." />
-          </label>
-          <button className="btn" type="submit" disabled={!listTitle.trim() || createList.isPending}>
-            {createList.isPending ? <Loader2 size={16} className="spin" /> : <Plus size={16} />}
-            Create
-          </button>
-        </form>
-
-        <div className="side-label" style={{ paddingInline: 0 }}>
-          Agent tools
         </div>
         {agentTools.isLoading ? (
           <span className="chip">
@@ -98,19 +62,10 @@ export function ListsBoard() {
         <div className="row between top">
           <div>
             <div className="kicker" style={{ marginBottom: 8 }}>
-              Lists
+              Tasks
             </div>
-            <h2 style={{ fontSize: 22 }}>{activeList?.title ?? "Todos"}</h2>
+            <h2 style={{ fontSize: 22 }}>Inbox</h2>
           </div>
-          {lists.data?.length ? (
-            <select className="select list-select" value={activeListId} onChange={(event) => setSelectedListId(event.target.value)} aria-label="Select list">
-              {lists.data.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.title}
-                </option>
-              ))}
-            </select>
-          ) : null}
         </div>
 
         <form
@@ -120,14 +75,14 @@ export function ListsBoard() {
             void submitTodo();
           }}
         >
-          <input className="input grow" value={todoTitle} onChange={(event) => setTodoTitle(event.target.value)} placeholder="Add a todo..." aria-label="Todo title" />
+          <input className="input grow" value={todoTitle} onChange={(event) => setTodoTitle(event.target.value)} placeholder="Add a task..." aria-label="Task title" />
           <button className="btn" type="submit" disabled={!todoTitle.trim() || addTodo.isPending}>
             {addTodo.isPending ? <Loader2 size={16} className="spin" /> : <Plus size={16} />}
             Add
           </button>
         </form>
 
-        {todos.isLoading || lists.isLoading ? (
+        {todos.isLoading ? (
           <span className="chip">
             <Loader2 size={13} className="spin" /> Loading
           </span>
@@ -154,8 +109,8 @@ export function ListsBoard() {
             ))}
           </div>
         ) : (
-          <EmptyState title="No todos yet" icon={<Circle size={20} />}>
-            Add one here, or ask Quipu to make a list from chat.
+          <EmptyState title="No tasks yet" icon={<Circle size={20} />}>
+            Add one here, or ask Quipu from chat.
           </EmptyState>
         )}
       </section>

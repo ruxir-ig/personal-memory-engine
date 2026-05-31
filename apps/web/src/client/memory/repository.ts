@@ -29,6 +29,7 @@ import { randomUUID, sha256Hex } from "./crypto";
 import { isVaultUnlocked } from "@/client/vault/crypto-vault";
 import { clearAllSecrets, storeSecret } from "@/client/vault/secret-store";
 import { clearVault, putVaultBlob } from "./vault";
+import { extractReminderDueDate } from "@/lib/reminder-time";
 import {
   type MemoryData,
   databasePath,
@@ -42,7 +43,7 @@ import {
 export { addTodoItem, listAgentTools, listEnabledAgentToolManifests, listTodoLists, listTodos, setAgentToolEnabled, updateTodoItem, upsertAgentTool, upsertTodoList } from "./agent-workspace";
 export { listProviders, upsertProvider, deleteProvider } from "./providers";
 export { listSpaces, getSpaceBySlug } from "./spaces";
-export { getCanvasLayout } from "./canvas";
+export { enrichCanvasLayoutWithAi, getCanvasLayout, layoutFromSnapshot } from "./canvas";
 
 type CaptureResult = {
   artifact: Artifact;
@@ -114,42 +115,6 @@ function detectArtifactType(filename: string, mimeType: string): ArtifactType {
   return "unknown";
 }
 
-function extractDueDate(text: string, baseIso?: string): string | undefined {
-  const lower = text.toLowerCase();
-  if (!/(remind|remember|deadline|due|follow up|follow-up)/i.test(text)) return undefined;
-  const base = baseIso ? new Date(baseIso) : new Date();
-  const result = new Date(base);
-  if (lower.includes("tomorrow")) result.setDate(result.getDate() + 1);
-
-  const weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  const weekday = weekdays.findIndex((day) => lower.includes(day));
-  if (weekday >= 0) {
-    const diff = (weekday + 7 - result.getDay()) % 7 || 7;
-    result.setDate(result.getDate() + diff);
-  }
-
-  const isoDate = lower.match(/\b(20\d{2}-\d{2}-\d{2})\b/)?.[1];
-  if (isoDate) {
-    const [year, month, day] = isoDate.split("-").map(Number);
-    result.setFullYear(year!, month! - 1, day);
-  }
-
-  const timeMatch = lower.match(/\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/);
-  if (timeMatch) {
-    let hour = Number(timeMatch[1]);
-    const minute = Number(timeMatch[2] ?? 0);
-    const meridiem = timeMatch[3];
-    if (meridiem === "pm" && hour < 12) hour += 12;
-    if (meridiem === "am" && hour === 12) hour = 0;
-    result.setHours(hour, minute, 0, 0);
-  } else {
-    result.setHours(9, 0, 0, 0);
-  }
-
-  if (result.getTime() <= base.getTime() && !lower.includes("today")) result.setDate(result.getDate() + 1);
-  return result.toISOString();
-}
-
 function classifyInput(text: string, artifactId?: string, clientNow?: string, timezone?: string): IntentRecord[] {
   const createdAt = now();
   const intents: IntentRecord[] = [
@@ -167,7 +132,7 @@ function classifyInput(text: string, artifactId?: string, clientNow?: string, ti
     },
   ];
 
-  const dueAt = extractDueDate(text, clientNow);
+  const dueAt = extractReminderDueDate(text, clientNow);
   if (dueAt) {
     intents.push({
       id: randomUUID(),
@@ -729,6 +694,181 @@ export async function setItemFlags(input: { id: string; pinned?: boolean; archiv
   markCanvasStale(data);
   await writeData(data);
   return artifact;
+}
+
+/* ----------------------------- memory CRUD ----------------------------- */
+
+type MemoryItemPatch = {
+  artifactId?: string;
+  query?: string;
+  title?: string;
+  summary?: string;
+  text?: string;
+  sourceLabel?: string;
+  tags?: string[];
+  pinned?: boolean;
+  archived?: boolean;
+};
+
+type MemoryItemListInput = {
+  query?: string;
+  limit?: number;
+  includeArchived?: boolean;
+};
+
+function memoryItemText(data: MemoryData, artifact: Artifact) {
+  const summary = data.summaries.find((item) => item.artifactId === artifact.id);
+  const chunks = data.chunks.filter((chunk) => chunk.artifactId === artifact.id).map((chunk) => chunk.text).join(" ");
+  return [artifact.id, artifact.title, artifact.sourceLabel, artifact.kind, summary?.summary, summary?.tags.join(" "), chunks]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function memoryItemPreview(data: MemoryData, artifact: Artifact, score?: number) {
+  const summary = data.summaries.find((item) => item.artifactId === artifact.id);
+  return {
+    id: artifact.id,
+    title: artifact.title,
+    kind: artifact.kind,
+    type: artifact.type,
+    sourceLabel: artifact.sourceLabel,
+    capturedAt: artifact.capturedAt,
+    pinned: Boolean(artifact.pinned),
+    archived: Boolean(artifact.archived),
+    summary: summary?.summary,
+    tags: summary?.tags ?? [],
+    score,
+  };
+}
+
+function findMemoryItemMatches(data: MemoryData, input: MemoryItemListInput) {
+  const query = input.query?.trim().toLowerCase();
+  const terms = query?.split(/\s+/).filter((term) => term.length > 1) ?? [];
+  return data.artifacts
+    .filter((artifact) => input.includeArchived || !artifact.archived)
+    .map((artifact) => {
+      const haystack = memoryItemText(data, artifact);
+      const exactTitle = query && artifact.title.toLowerCase() === query ? 3 : 0;
+      const matchedTerms = terms.filter((term) => haystack.includes(term)).length;
+      const score = query ? exactTitle + matchedTerms : 1;
+      if (query && score === 0) return null;
+      return { artifact, score };
+    })
+    .filter((match): match is { artifact: Artifact; score: number } => Boolean(match))
+    .sort((a, b) => b.score - a.score || b.artifact.capturedAt.localeCompare(a.artifact.capturedAt))
+    .slice(0, input.limit ?? 8);
+}
+
+function resolveMemoryTarget(data: MemoryData, input: { artifactId?: string; query?: string }) {
+  if (input.artifactId) {
+    const artifact = data.artifacts.find((item) => item.id === input.artifactId);
+    if (!artifact) throw new Error("Memory item not found.");
+    return artifact;
+  }
+
+  const query = input.query?.trim();
+  if (!query) throw new Error("Provide artifactId or query.");
+
+  const matches = findMemoryItemMatches(data, { query, limit: 5, includeArchived: true });
+  if (matches.length === 0) throw new Error(`No memory matched "${query}".`);
+
+  const lowered = query.toLowerCase();
+  const exact = matches.filter(
+    ({ artifact }) => artifact.id === query || artifact.id.startsWith(query) || artifact.title.toLowerCase() === lowered || artifact.sourceLabel.toLowerCase() === lowered,
+  );
+  if (exact.length === 1) return exact[0]!.artifact;
+  if (matches.length === 1) return matches[0]!.artifact;
+
+  const candidates = matches.map(({ artifact }) => `${artifact.title} (${artifact.id})`).join("; ");
+  throw new Error(`Multiple memories match "${query}". Be more specific: ${candidates}`);
+}
+
+export async function listMemoryItems(input: MemoryItemListInput = {}) {
+  const data = await readData();
+  return findMemoryItemMatches(data, input).map(({ artifact, score }) => memoryItemPreview(data, artifact, score));
+}
+
+export async function readMemoryItem(input: { artifactId?: string; query?: string }) {
+  const data = await readData();
+  const artifact = resolveMemoryTarget(data, input);
+  return {
+    artifact,
+    space: data.spaces.find((space) => space.id === artifact.spaceId) ?? null,
+    summary: data.summaries.find((summary) => summary.artifactId === artifact.id) ?? null,
+    chunks: data.chunks.filter((chunk) => chunk.artifactId === artifact.id),
+    intents: data.intents.filter((intent) => intent.artifactId === artifact.id),
+    reminders: data.reminders.filter((reminder) => reminder.artifactId === artifact.id),
+  };
+}
+
+export async function updateMemoryItem(input: MemoryItemPatch) {
+  const data = await readData();
+  const artifact = resolveMemoryTarget(data, input);
+  const updatedAt = now();
+  let summary = data.summaries.find((item) => item.artifactId === artifact.id);
+
+  if (input.title) artifact.title = input.title;
+  if (input.sourceLabel) artifact.sourceLabel = input.sourceLabel;
+  if (typeof input.pinned === "boolean") artifact.pinned = input.pinned;
+  if (typeof input.archived === "boolean") artifact.archived = input.archived;
+  artifact.metadata = { ...artifact.metadata, updatedAt, updatedBy: "agent" };
+
+  if (!summary && (input.title || input.summary || input.tags || input.text)) {
+    summary = {
+      id: randomUUID(),
+      artifactId: artifact.id,
+      title: artifact.title,
+      summary: input.summary ?? (input.text ? summarizeText(input.text) : artifact.title),
+      tags: input.tags ?? [],
+      createdAt: updatedAt,
+    };
+    data.summaries.push(summary);
+  }
+
+  if (summary) {
+    if (input.title) summary.title = input.title;
+    if (input.summary) summary.summary = input.summary;
+    if (input.tags) summary.tags = Array.from(new Set(input.tags.map((tag) => tag.toLowerCase()))).slice(0, 12);
+    if (input.text && !input.summary) summary.summary = summarizeText(input.text);
+  }
+
+  if (input.text) {
+    const oldChunkIds = new Set(data.chunks.filter((chunk) => chunk.artifactId === artifact.id).map((chunk) => chunk.id));
+    data.chunks = data.chunks.filter((chunk) => chunk.artifactId !== artifact.id);
+    data.edges = data.edges.filter((edge) => !oldChunkIds.has(edge.fromId) && !oldChunkIds.has(edge.toId));
+    data.chunks.push(...chunkText(artifact.id, input.text, artifact.capturedAt));
+  }
+
+  markCanvasStale(data);
+  await writeData(data);
+  return readMemoryItem({ artifactId: artifact.id });
+}
+
+export async function deleteMemoryItem(input: { artifactId?: string; query?: string }) {
+  const data = await readData();
+  const artifact = resolveMemoryTarget(data, input);
+  const chunkIds = new Set(data.chunks.filter((chunk) => chunk.artifactId === artifact.id).map((chunk) => chunk.id));
+
+  data.artifacts = data.artifacts.filter((item) => item.id !== artifact.id);
+  data.chunks = data.chunks.filter((chunk) => chunk.artifactId !== artifact.id);
+  data.summaries = data.summaries.filter((summary) => summary.artifactId !== artifact.id);
+  data.intents = data.intents.filter((intent) => intent.artifactId !== artifact.id);
+  data.events = data.events.filter((event) => event.artifactId !== artifact.id);
+  data.reminders = data.reminders.filter((reminder) => reminder.artifactId !== artifact.id);
+  data.ingestionRuns = data.ingestionRuns.filter((run) => run.artifactId !== artifact.id);
+  data.edges = data.edges.filter(
+    (edge) =>
+      edge.provenanceArtifactId !== artifact.id &&
+      edge.fromId !== artifact.id &&
+      edge.toId !== artifact.id &&
+      !chunkIds.has(edge.fromId) &&
+      !chunkIds.has(edge.toId),
+  );
+
+  markCanvasStale(data);
+  await writeData(data);
+  return memoryItemPreview(data, artifact);
 }
 
 /* ----------------------------- search / retrieval ----------------------------- */

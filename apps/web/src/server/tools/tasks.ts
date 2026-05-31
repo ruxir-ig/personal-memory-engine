@@ -1,31 +1,67 @@
-import { addTodoItem, listTodoLists, listTodos, updateTodoItem, upsertTodoList } from "@/server/data/agent-workspace";
+import { addTodoItem, deleteTodoItems, listTodos, updateTodoItem } from "@/server/data/agent-workspace";
 import type { TaskToolArgs, ToolContext, ToolResult } from "./types";
 
 export async function runTasksTool(args: TaskToolArgs, _context: ToolContext): Promise<ToolResult> {
   try {
-    if (args.action === "list_lists") {
-      const lists = await listTodoLists();
-      return { toolId: "tasks", ok: true, summary: `Found ${lists.length} todo list${lists.length === 1 ? "" : "s"}.`, data: { lists } };
-    }
-    if (args.action === "create_list") {
-      if (!args.listTitle && !args.title) throw new Error("Provide listTitle or title");
-      const list = await upsertTodoList({ title: args.listTitle ?? args.title!, description: args.notes });
-      return { toolId: "tasks", ok: true, summary: `Ready todo list: ${list.title}.`, data: { list } };
-    }
-    if (args.action === "list_items") {
+    if (args.action === "list") {
       const status = args.status === "all" ? "all" : args.status;
       const todos = await listTodos({ listId: args.listId, listTitle: args.listTitle, status, includeArchivedLists: args.includeArchivedLists });
-      return { toolId: "tasks", ok: true, summary: `Found ${todos.length} todo item${todos.length === 1 ? "" : "s"}.`, data: { todos } };
+      const filtered = args.query
+        ? todos.filter((todo) => [todo.id, todo.title, todo.notes, todo.status, todo.priority, todo.tags.join(" "), todo.listTitle].filter(Boolean).join(" ").toLowerCase().includes(args.query!.toLowerCase()))
+        : todos;
+      return { toolId: "tasks", ok: true, summary: `Found ${filtered.length} task${filtered.length === 1 ? "" : "s"}.`, data: { tasks: filtered } };
     }
-    if (args.action === "add_item") {
-      if (!args.title) throw new Error("Provide title");
+    if (args.action === "create") {
+      if (args.items.length > 0) {
+        const todos = [];
+        for (const item of args.items) {
+          todos.push(
+            await addTodoItem({
+              title: item.title,
+              listId: args.listId,
+              listTitle: args.listTitle,
+              notes: item.notes,
+              priority: item.priority,
+              dueAt: item.dueAt,
+              tags: item.tags,
+            }),
+          );
+        }
+        return {
+          toolId: "tasks",
+          ok: true,
+          summary: `Added ${todos.length} task${todos.length === 1 ? "" : "s"}.`,
+          data: { tasks: todos },
+        };
+      }
+      if (!args.title) throw new Error("Provide title or items");
       const todo = await addTodoItem({ title: args.title, listId: args.listId, listTitle: args.listTitle, notes: args.notes, priority: args.priority, dueAt: args.dueAt, tags: args.tags });
-      return { toolId: "tasks", ok: true, summary: `Added todo: ${todo.title}.`, data: { todo } };
+      return { toolId: "tasks", ok: true, summary: `Added task: ${todo.title}.`, data: { task: todo } };
     }
-    if (args.action === "update_item") {
-      if (!args.itemId) throw new Error("Provide itemId");
-      const todo = await updateTodoItem({ itemId: args.itemId, title: args.title, notes: args.notes, status: args.status === "all" ? undefined : args.status, priority: args.priority, dueAt: args.dueAt, tags: args.tags });
-      return { toolId: "tasks", ok: true, summary: `Updated todo: ${todo.title}.`, data: { todo } };
+    if (args.action === "update") {
+      let itemId = args.itemId;
+      if (!itemId && args.query) {
+        const matches = await listTodos({ listId: args.listId, listTitle: args.listTitle, status: args.status === "all" ? "all" : args.status, includeArchivedLists: args.includeArchivedLists });
+        const lowered = args.query.toLowerCase();
+        const filtered = matches.filter((todo) => [todo.id, todo.title, todo.notes, todo.status, todo.priority, todo.tags.join(" "), todo.listTitle].filter(Boolean).join(" ").toLowerCase().includes(lowered));
+        if (filtered.length !== 1) throw new Error(`Matched ${filtered.length} tasks. Be more specific before updating.`);
+        itemId = filtered[0]!.id;
+      }
+      if (!itemId) throw new Error("Provide itemId or a query that matches one task");
+      const todo = await updateTodoItem({ itemId, title: args.title, notes: args.notes, status: args.status === "all" ? undefined : args.status, priority: args.priority, dueAt: args.dueAt, tags: args.tags });
+      return { toolId: "tasks", ok: true, summary: `Updated task: ${todo.title}.`, data: { task: todo } };
+    }
+    if (args.action === "delete") {
+      const deleted = await deleteTodoItems({
+        itemId: args.itemId,
+        query: args.query,
+        listId: args.listId,
+        listTitle: args.listTitle,
+        status: args.status === "all" ? "all" : args.status,
+        includeArchivedLists: args.includeArchivedLists,
+        maxCount: args.maxCount,
+      });
+      return { toolId: "tasks", ok: true, summary: `Deleted ${deleted.length} task${deleted.length === 1 ? "" : "s"}.`, data: { deleted } };
     }
     return { toolId: "tasks", ok: false, summary: `Unsupported task action: ${args.action}.`, data: { args } };
   } catch (error) {

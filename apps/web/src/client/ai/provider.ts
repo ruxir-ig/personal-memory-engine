@@ -134,10 +134,44 @@ function getModel(provider: OpenAICompatibleProvider) {
   return provider.chatModel || providerDefaults[provider.kind]?.model || process.env.PME_LLM_MODEL || "gpt-4o-mini";
 }
 
+function parseProviderError(status: number, body: string) {
+  if (!body) return `Provider request failed with HTTP ${status}.`;
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string } | string; message?: string };
+    const message = typeof parsed.error === "string" ? parsed.error : parsed.error?.message || parsed.message;
+    if (message) return `Provider request failed (${status}): ${message}`;
+  } catch {
+    // Fall through to a trimmed raw response.
+  }
+  return `Provider request failed (${status}): ${body.slice(0, 240)}`;
+}
+
 function parseJsonContent(content: string) {
   const trimmed = content.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1];
   return JSON.parse(fenced ?? trimmed) as unknown;
+}
+
+async function postChatCompletion(provider: OpenAICompatibleProvider, body: Record<string, unknown>) {
+  const baseUrl = getBaseUrl(provider);
+  const model = getModel(provider);
+  if (!baseUrl) throw new Error("AI provider base URL is required");
+  if (!model) throw new Error("AI provider chat model is required");
+
+  const response = await fetch("/api/llm/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      baseUrl,
+      apiKey: provider.apiKey,
+      body: { ...body, model },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(parseProviderError(response.status, await response.text()));
+  }
+  return response;
 }
 
 export async function callProviderChatJSON(args: {
@@ -146,33 +180,35 @@ export async function callProviderChatJSON(args: {
   user: unknown;
   temperature?: number;
 }): Promise<unknown> {
-  const baseUrl = getBaseUrl(args.provider);
-  const model = getModel(args.provider);
-  if (!baseUrl) throw new Error("AI provider base URL is required");
-  if (!model) throw new Error("AI provider chat model is required");
-
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${args.provider.apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      temperature: args.temperature ?? 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: args.system },
-        { role: "user", content: typeof args.user === "string" ? args.user : JSON.stringify(args.user) },
-      ],
-    }),
+  const response = await postChatCompletion(args.provider, {
+    temperature: args.temperature ?? 0.2,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: args.system },
+      { role: "user", content: typeof args.user === "string" ? args.user : JSON.stringify(args.user) },
+    ],
   });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`AI provider failed (${response.status}): ${body.slice(0, 240)}`);
-  }
   const payload = (await response.json()) as ChatCompletionResponse;
   const content = payload.choices?.[0]?.message?.content;
   if (!content) throw new Error("AI provider returned an empty response");
   return parseJsonContent(content);
+}
+
+export async function testProviderChat(provider: OpenAICompatibleProvider): Promise<string> {
+  if (!provider.apiKey.trim()) throw new Error("API key is required.");
+
+  const response = await postChatCompletion(provider, {
+    temperature: 0,
+    max_tokens: 16,
+    messages: [
+      { role: "system", content: "You are a provider connectivity check. Reply briefly." },
+      { role: "user", content: "Reply with: quipu-ok" },
+    ],
+  });
+  const payload = (await response.json()) as ChatCompletionResponse;
+  const content = payload.choices?.[0]?.message?.content?.trim();
+  if (!content) throw new Error("Provider returned an empty response.");
+  return content;
 }
 
 export async function processMemoryWithProvider(args: {
@@ -333,18 +369,20 @@ export async function answerMemoryWithProvider(args: {
   question: string;
   candidates: AnswerCandidate[];
 }): Promise<GroundedAnswer> {
+  const redactedQuestion = redactSecretsForLlm(args.question);
   const parsed = await callProviderChatJSON({
     provider: args.provider,
     temperature: 0.2,
     system:
       "You are Quipu's memory answerer. Answer the user's question using ONLY the candidate memories they previously saved. Never use outside knowledge and never invent facts. If the candidates do not contain the answer, say plainly that it is not in their saved memory. Keep the answer concise (1-4 sentences) and conversational. Cite by returning the `id` of every candidate you actually relied on in `citations`. Return ONLY valid JSON matching the schema.",
     user: {
-      question: args.question,
+      question: redactedQuestion.text,
+      encryptedCredentialsDetected: llmContextForRedactions(redactedQuestion.redactions),
       candidates: args.candidates.map((candidate) => ({
         id: candidate.chunkId,
         title: candidate.title,
         source: candidate.source,
-        text: candidate.text.slice(0, 700),
+        text: redactSecretsForLlm(candidate.text.slice(0, 700)).text,
       })),
       schema: {
         answer: "concise answer grounded only in the candidates; if unknown, say it is not in saved memory",

@@ -10,6 +10,7 @@ import {
   useImportFileMutation,
   useInvalidateMemory,
 } from "@/client/hooks";
+import { itemHref } from "@/lib/item-route";
 
 type AttachmentDraft = { id: string; file: File; previewUrl?: string };
 
@@ -31,18 +32,6 @@ function createAttachment(file: File): AttachmentDraft {
     file,
     previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
   };
-}
-
-function isQuestionLike(text: string) {
-  const t = text.trim();
-  if (!t) return false;
-  if (/[?？]$/.test(t)) return true;
-  if (/^(what|who|where|when|why|how|which|show|find|search|summarize|summarise|tell me|do i|did i|can you|list)\b/i.test(t)) return true;
-  return false;
-}
-
-function isSaveLike(text: string) {
-  return /^(remember|save|store|capture|file this|add this)\b/i.test(text.trim()) || /\b(remember that|save this|store this)\b/i.test(text);
 }
 
 export function Composer() {
@@ -103,18 +92,19 @@ export function Composer() {
   async function submitCapture() {
     const prompt = text.trim();
     if (!prompt && attachments.length === 0) return;
-    const shouldAsk = prompt && attachments.length === 0 && isQuestionLike(prompt);
-    const shouldSaveAndAsk = prompt && attachments.length === 0 && shouldAsk && isSaveLike(prompt);
+    const shouldUseAgent = prompt && attachments.length === 0;
 
     setIsSubmitting(true);
     try {
-      if (shouldAsk && !shouldSaveAndAsk) {
+      if (shouldUseAgent) {
+        capture.reset();
         await ask.mutateAsync({
           question: prompt,
           clientNow: new Date().toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         });
         setText("");
+        await invalidateMemoryViews();
         return;
       }
 
@@ -127,16 +117,6 @@ export function Composer() {
           clientNow: new Date().toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         });
-      }
-      if (shouldSaveAndAsk) {
-        await invalidateMemoryViews();
-        await ask.mutateAsync({
-          question: prompt,
-          clientNow: new Date().toISOString(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        });
-        setText("");
-        return;
       }
       if (attachments.length > 0) {
         await Promise.all(attachments.map((attachment) => uploadFile(attachment.file)));
@@ -179,9 +159,10 @@ export function Composer() {
   }
 
   const isWorking = capture.isPending || ask.isPending || isSubmitting;
-  const isAskMode = Boolean(text.trim()) && attachments.length === 0 && isQuestionLike(text) && !isSaveLike(text);
+  const isAgentMode = Boolean(text.trim()) && attachments.length === 0;
   const canSubmit = Boolean(text.trim() || attachments.length > 0) && !isWorking;
-  const showExtras = attachments.length > 0 || Boolean(ask.data) || Boolean(capture.error) || Boolean(ask.error);
+  const showExtras = isWorking || attachments.length > 0 || Boolean(ask.data) || Boolean(capture.data) || Boolean(capture.error) || Boolean(ask.error);
+  const aiStatus = capture.data?.artifact.metadata.aiStatus;
 
   return (
     <div className="composer-wrap">
@@ -222,6 +203,28 @@ export function Composer() {
               </p>
             ) : null}
 
+            {isWorking ? (
+              <div className="composer-status" role="status">
+                <Loader2 size={14} className="spin" />
+                <span>{ask.isPending ? "Routing with AI..." : attachments.length > 0 ? "Importing..." : "Saving..."}</span>
+              </div>
+            ) : null}
+
+            {capture.data ? (
+              <div className="composer-answer">
+                <p>
+                  {aiStatus === "processed"
+                    ? `Saved with ${String(capture.data.artifact.metadata.provider ?? "your AI provider")}.`
+                    : aiStatus === "provider_required"
+                      ? "Saved locally. Add an AI provider to route and summarize captures."
+                      : aiStatus === "failed"
+                        ? "Saved locally, but AI routing failed."
+                        : "Saved locally."}
+                </p>
+                <span>{capture.data.summary.summary}</span>
+              </div>
+            ) : null}
+
             {ask.data ? (
               <div className="composer-answer">
                 <p>{ask.data.answer}</p>
@@ -238,7 +241,7 @@ export function Composer() {
                 {ask.data.citations.length > 0 ? (
                   <div className="composer-cites">
                     {ask.data.citations.slice(0, 3).map((citation) => (
-                      <Link key={citation.chunkId} href={`/item/${citation.artifactId}`}>
+                      <Link key={citation.chunkId} href={itemHref(citation.artifactId)}>
                         {citation.title}
                       </Link>
                     ))}
@@ -265,7 +268,8 @@ export function Composer() {
             className="composer-input"
             value={text}
             onChange={(event) => {
-              if (ask.data) ask.reset();
+              if (ask.data || ask.error) ask.reset();
+              if (capture.data || capture.error) capture.reset();
               setText(event.target.value);
             }}
             onPaste={handlePaste}
@@ -273,8 +277,8 @@ export function Composer() {
             placeholder="Ask, save, or drop anything..."
             rows={1}
           />
-          <button className="btn" type="button" aria-label={isAskMode ? "Ask" : "Save"} onClick={submitCapture} disabled={!canSubmit}>
-            {isWorking ? <Loader2 size={17} className="spin" /> : isAskMode ? <ArrowUpRight size={17} /> : <Send size={17} />}
+          <button className="btn" type="button" aria-label={isAgentMode ? "Send to Quipu" : "Save"} onClick={submitCapture} disabled={!canSubmit}>
+            {isWorking ? <Loader2 size={17} className="spin" /> : isAgentMode ? <ArrowUpRight size={17} /> : <Send size={17} />}
           </button>
           <span className="composer-voice-soon" tabIndex={0} role="status" aria-label="Voice input — coming soon">
             <span className="icon-btn bare" aria-hidden="true">

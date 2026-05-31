@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight, Loader2, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useAskMutation } from "@/client/hooks";
+import { itemHref } from "@/lib/item-route";
 import { EmptyState } from "./empty-state";
 
 export function ChatPanel({ suggestions }: { suggestions: string[] }) {
@@ -72,7 +73,7 @@ export function ChatPanel({ suggestions }: { suggestions: string[] }) {
               </p>
             ) : null}
             {ask.data.citations.map((citation) => (
-              <Link className="cite" key={citation.chunkId} href={`/item/${citation.artifactId}`}>
+              <Link className="cite" key={citation.chunkId} href={itemHref(citation.artifactId)}>
                 <div className="grow">
                   <strong style={{ fontSize: 12.5 }}>{citation.title}</strong>
                   <blockquote>{citation.quote}</blockquote>

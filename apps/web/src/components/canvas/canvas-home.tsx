@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { Artifact, SummaryRecord } from "@pme/shared";
+import { layoutFromSnapshot } from "@/client/memory/canvas";
 import { CanvasBoard, type CanvasBundle, type ItemView, type SpaceLite, type TodayEntry } from "@/components/canvas/canvas-board";
 import type { ReviewEntry } from "@/components/canvas/review-queue";
 import { useCanvasLayout, useDashboardSnapshot, useSpaces } from "@/client/hooks";
@@ -27,16 +29,22 @@ const intentLabel: Record<string, string> = {
 };
 
 export function CanvasHome() {
-  const clientNow = new Date().toISOString();
+  const [clientNow] = useState(() => new Date().toISOString());
   const snapshot = useDashboardSnapshot();
-  const layout = useCanvasLayout(clientNow);
+  const layoutQuery = useCanvasLayout(clientNow);
   const spaces = useSpaces();
 
-  if (snapshot.isLoading || layout.isLoading || spaces.isLoading) {
+  const layout = useMemo(() => {
+    if (layoutQuery.data) return layoutQuery.data;
+    if (snapshot.data) return layoutFromSnapshot(snapshot.data, clientNow);
+    return undefined;
+  }, [layoutQuery.data, snapshot.data, clientNow]);
+
+  if (snapshot.isLoading || spaces.isLoading) {
     return <div className="card pad faint">Loading your canvas…</div>;
   }
 
-  if (!snapshot.data || !layout.data || !spaces.data) {
+  if (!snapshot.data || !layout || !spaces.data) {
     return <div className="card pad faint">Could not load canvas.</div>;
   }
 
@@ -64,11 +72,14 @@ export function CanvasHome() {
   const today: TodayEntry[] = [
     ...snapshot.data.reminders
       .filter((reminder) => reminder.status === "scheduled" && isToday(reminder.dueAt))
-      .map((reminder) => ({ id: reminder.id, when: timeOf(reminder.dueAt), title: reminder.title, sub: "Reminder" })),
+      .map((reminder) => ({ id: reminder.id, when: timeOf(reminder.dueAt), title: reminder.title, sub: "Reminder", sortAt: reminder.dueAt })),
     ...snapshot.data.events
       .filter((event) => isToday(event.eventAt ?? event.capturedAt))
-      .map((event) => ({ id: event.id, when: timeOf(event.eventAt ?? event.capturedAt), title: event.title, sub: event.description })),
-  ].sort((a, b) => a.when.localeCompare(b.when));
+      .map((event) => ({ id: event.id, when: timeOf(event.eventAt ?? event.capturedAt), title: event.title, sub: event.description, sortAt: event.eventAt ?? event.capturedAt })),
+    ...snapshot.data.todos
+      .filter((todo) => todo.status === "open" && isToday(todo.dueAt))
+      .map((todo) => ({ id: todo.id, when: timeOf(todo.dueAt), title: todo.title, sub: "Todo", sortAt: todo.dueAt })),
+  ].sort((a, b) => (a.sortAt ?? "").localeCompare(b.sortAt ?? ""));
 
   const review: ReviewEntry[] = snapshot.data.intents.map((intent) => ({
     id: intent.id,
@@ -77,7 +88,7 @@ export function CanvasHome() {
   }));
 
   const bundle: CanvasBundle = {
-    layout: layout.data,
+    layout,
     itemsById,
     spaces: spaceList,
     credentials,

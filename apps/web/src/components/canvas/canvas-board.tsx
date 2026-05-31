@@ -14,8 +14,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { Artifact, CanvasBlock, CanvasBlockType, CanvasLayout, SpaceAccent, SummaryRecord } from "@pme/shared";
+import { itemHref } from "@/lib/item-route";
 import { kindMeta } from "@/lib/registry";
 import { relativeTime } from "@/lib/utils";
 import { ItemCard } from "@/components/cards/item-card";
@@ -25,7 +26,7 @@ import { SpaceCard } from "./space-card";
 
 export type ItemView = { item: Artifact; summary?: SummaryRecord };
 export type SpaceLite = { id: string; slug: string; title: string; description?: string; icon: string; accent: SpaceAccent; itemCount: number };
-export type TodayEntry = { id: string; when: string; title: string; sub?: string };
+export type TodayEntry = { id: string; when: string; title: string; sub?: string; sortAt?: string };
 
 export type CanvasBundle = {
   layout: CanvasLayout;
@@ -75,7 +76,12 @@ function BlockShell({ block, action, children }: { block: CanvasBlock; action?: 
 
 export function CanvasBoard({ bundle }: { bundle: CanvasBundle }) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const { layout, itemsById, spaces, credentials, today, review } = bundle;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const spaceById = new Map(spaces.map((space) => [space.id, space]));
   const itemsFor = (ids: string[]) => ids.map((id) => itemsById[id]).filter((view): view is ItemView => Boolean(view));
 
@@ -184,7 +190,7 @@ export function CanvasBoard({ bundle }: { bundle: CanvasBundle }) {
                       {view.item.title}
                     </a>
                   ) : (
-                    <Link href={`/item/${view.item.id}`}>{view.item.title}</Link>
+                    <Link href={itemHref(view.item.id)}>{view.item.title}</Link>
                   )}
                 </h2>
                 {view.summary?.summary ? <p className="clamp-3">{view.summary.summary}</p> : null}
@@ -196,7 +202,7 @@ export function CanvasBoard({ bundle }: { bundle: CanvasBundle }) {
                 <span className="faint" style={{ fontSize: 12 }}>
                   {relativeTime(view.item.capturedAt)}
                 </span>
-                <Link className="btn secondary sm" href={`/item/${view.item.id}`} style={{ marginLeft: "auto" }}>
+                <Link className="btn secondary sm" href={itemHref(view.item.id)} style={{ marginLeft: "auto" }}>
                   Open
                 </Link>
               </div>
@@ -240,7 +246,9 @@ export function CanvasBoard({ bundle }: { bundle: CanvasBundle }) {
         </div>
       </div>
 
-      <div className="board">{layout.blocks.map((block) => renderBlock(block))}</div>
+      <div className="board" data-mounted={mounted || undefined}>
+        {layout.blocks.map((block) => renderBlock(block))}
+      </div>
     </div>
   );
 }

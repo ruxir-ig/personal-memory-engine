@@ -16,6 +16,7 @@ export function VaultPanel() {
     setBusy(true);
     try {
       if (action === "setup") {
+        if (confirm.length < 8) throw new Error("Confirm your vault passphrase.");
         if (passphrase !== confirm) throw new Error("Passphrases do not match.");
         await vault.setup(passphrase);
       } else {
@@ -67,7 +68,7 @@ export function VaultPanel() {
           <button
             className="btn"
             type="button"
-            disabled={busy || passphrase.length < 8}
+            disabled={busy || passphrase.length < 8 || (!vault.configured && confirm.length < 8)}
             onClick={() => run(vault.configured ? "unlock" : "setup")}
           >
             {busy ? <Loader2 size={16} className="spin" /> : <Lock size={16} />}

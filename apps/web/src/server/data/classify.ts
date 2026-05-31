@@ -202,7 +202,7 @@ export function classifyCapture(text: string): Classification {
     };
   }
 
-  if (/\b(remind|deadline|due|todo|to-do|follow up|follow-up|submit|by (mon|tue|wed|thu|fri|sat|sun)|tomorrow)\b/i.test(trimmed)) {
+  if (/\b(remind|deadline|due|todo|to-do|to\s+do|follow up|follow-up|submit|by (mon|tue|wed|thu|fri|sat|sun)|tomorrow)\b/i.test(trimmed)) {
     return {
       kind: "task",
       title: firstLine(trimmed).replace(/^#+\s*/, "").slice(0, 80),

@@ -2,6 +2,7 @@ import { runBrowserTool } from "./browser";
 import { runCalendarTool } from "./calendar";
 import { runClockTool } from "./clock";
 import { runFfmpegTool } from "./ffmpeg";
+import { runMemoryTool } from "./memory";
 import { runTasksTool } from "./tasks";
 import { runToolkitTool } from "./toolkit";
 import {
@@ -9,6 +10,7 @@ import {
   calendarArgsSchema,
   clockArgsSchema,
   ffmpegArgsSchema,
+  memoryToolArgsSchema,
   taskToolArgsSchema,
   toolkitToolArgsSchema,
   type ToolContext,
@@ -45,6 +47,13 @@ export async function executeTool(id: ToolId, rawArgs: unknown, context: ToolCon
         return invalidArgs(id, rawArgs, parsed.error.issues.map((issue) => issue.message).join("; "));
       }
       return runFfmpegTool(parsed.data);
+    }
+    case "memory": {
+      const parsed = memoryToolArgsSchema.safeParse(rawArgs ?? {});
+      if (!parsed.success) {
+        return invalidArgs(id, rawArgs, parsed.error.issues.map((issue) => issue.message).join("; "));
+      }
+      return runMemoryTool(parsed.data, context);
     }
     case "tasks": {
       const parsed = taskToolArgsSchema.safeParse(rawArgs ?? {});
